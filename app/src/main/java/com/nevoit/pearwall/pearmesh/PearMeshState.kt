@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -15,7 +14,7 @@ import com.nevoit.pearwall.pearmesh.gl.RenderDebugInfo
 
 @Stable
 class PearMeshState(
-    isBehindLyrics: Boolean = true,
+    behindLyricsProgress: Float = 1f,
     portraitPresetIndex: Int = DefaultPortraitPresetIndex,
     landscapePresetIndex: Int = DefaultLandscapePresetIndex,
     renderScale: Float = DefaultRenderScale,
@@ -23,8 +22,10 @@ class PearMeshState(
 ) {
     private val artworkId = AtomicLong(0L)
     private val artwork = AtomicReference<ArtworkFrame?>(null)
-    private val lyricsTarget = AtomicBoolean(isBehindLyrics)
-    private val demoPulse = AtomicBoolean(false)
+    private val lyricsProgressBits = AtomicInteger(
+        behindLyricsProgress.coerceIn(0f, 1f).toRawBits(),
+    )
+    private val demoPulse = AtomicReference(false)
     private val audioPower = AtomicReference(FloatArray(4))
     private val debugInfo = AtomicReference(RenderDebugInfo())
     private val portraitPreset = AtomicInteger(
@@ -41,10 +42,6 @@ class PearMeshState(
     )
     @Volatile
     private var artworkChangedListener: (() -> Unit)? = null
-
-    private var behindLyricsState by mutableStateOf(isBehindLyrics)
-    val isBehindLyrics: Boolean
-        get() = behindLyricsState
 
     private var demoPulseState by mutableStateOf(false)
     val isDemoPulseEnabled: Boolean
@@ -66,9 +63,9 @@ class PearMeshState(
     val targetFrameRate: Int
         get() = targetFrameRateState
 
-    fun setBehindLyrics(enabled: Boolean) {
-        behindLyricsState = enabled
-        lyricsTarget.set(enabled)
+    fun setBehindLyricsProgress(progress: Float) {
+        val clampedProgress = progress.coerceIn(0f, 1f)
+        lyricsProgressBits.set(clampedProgress.toRawBits())
     }
 
     fun setDemoPulseEnabled(enabled: Boolean) {
@@ -128,7 +125,7 @@ class PearMeshState(
 
     fun snapshot(): RendererState = RendererState(
         artwork = artwork.get(),
-        isBehindLyrics = lyricsTarget.get(),
+        behindLyricsProgress = Float.fromBits(lyricsProgressBits.get()),
         isDemoPulseEnabled = demoPulse.get(),
         audioPower = audioPower.get(),
         portraitPresetIndex = portraitPreset.get(),
@@ -155,7 +152,7 @@ data class ArtworkFrame(val id: Long, val bitmap: Bitmap)
 
 data class RendererState(
     val artwork: ArtworkFrame?,
-    val isBehindLyrics: Boolean,
+    val behindLyricsProgress: Float,
     val isDemoPulseEnabled: Boolean,
     val audioPower: FloatArray,
     val portraitPresetIndex: Int,

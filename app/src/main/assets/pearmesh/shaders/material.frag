@@ -45,15 +45,22 @@ void main() {
         color = treated(uOrdinaryBackdrop, vOrdinaryTexCoord);
     } else if (uMaterialMode == 1) {
         color = treated(uLyricsBackdrop, vTexCoord);
-    } else {
+    } else if (uMaterialMode == 2) {
         vec3 ordinary = treated(uOrdinaryBackdrop, vOrdinaryTexCoord);
         vec3 lyrics = treated(uLyricsBackdrop, vTexCoord);
         color = mix(ordinary, lyrics, uLyricsModeMix);
+    } else {
+        vec3 ordinary = treated(uOrdinaryBackdrop, vOrdinaryTexCoord);
+        color = mix(ordinary, vec3(0.0), uLyricsModeMix);
     }
 
     float dither = fract(
         52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))
     ) - 0.5;
-    color += dither * (uDitherStrength / 255.0);
+    float ditherStrength = uDitherStrength;
+    if (uMaterialMode == 3) {
+        ditherStrength *= 1.0 - uLyricsModeMix;
+    }
+    color += dither * (ditherStrength / 255.0);
     outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }

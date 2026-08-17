@@ -1,0 +1,17 @@
+{
+  "uniqueId": "com.wxriw:lyricify-backgrounds",
+  "name": "Lyricify Backgrounds",
+  "description": "Background images inspired by Apple Music, from the Lyricify project.",
+  "website": "https://github.com/WXRIW/Lyricify-Backgrounds",
+  "developers": [
+    {
+      "name": "WXRIW"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/WXRIW/Lyricify-Backgrounds"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ]
+}

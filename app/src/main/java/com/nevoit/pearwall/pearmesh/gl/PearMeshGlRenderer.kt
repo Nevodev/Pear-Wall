@@ -77,12 +77,6 @@ internal class PearMeshGlRenderer(
     private var pendingArtworkId = 0L
     private var artworkTransitionStart = Double.NEGATIVE_INFINITY
 
-    private var lyricsInitialized = false
-    private var lyricsTarget = true
-    private var lyricsMix = 1f
-    private var lyricsMixFrom = 1f
-    private var lyricsMixTo = 1f
-    private var lyricsTransitionStart = 0.0
 
     init {
         GLES30.glDisable(GLES30.GL_DEPTH_TEST)
@@ -95,7 +89,7 @@ internal class PearMeshGlRenderer(
         ensureSize(width, height, state)
         updateArtwork(state, time)
         val transitionMix = artworkTransitionMix(time)
-        val currentLyricsMix = updateLyricsMix(state.isBehindLyrics, time)
+        val currentLyricsMix = state.behindLyricsProgress
         val imageScales = imageScales(state, time)
         val blurSigma = lerp(
             ORDINARY_BLUR_SIGMA,
@@ -103,8 +97,8 @@ internal class PearMeshGlRenderer(
             currentLyricsMix,
         ) * state.renderScale
 
-        val needsOrdinary = currentLyricsMix < 0.9999f
-        val needsLyrics = currentLyricsMix > 0.0001f
+        val needsOrdinary = currentLyricsMix < 1f
+        val needsLyrics = currentLyricsMix > 0f
         val lyricTarget = checkNotNull(lyricsBlurTarget)
         val ordinaryTarget = checkNotNull(ordinaryBlurTarget)
 
@@ -220,7 +214,10 @@ internal class PearMeshGlRenderer(
             }
 
             else -> {
-                drawFullscreenMaterial(MATERIAL_COMPOSITE, modeMix)
+                drawFullscreenMaterial(
+                    if (isPortrait) MATERIAL_COMPOSITE else MATERIAL_LANDSCAPE_BACKGROUND,
+                    modeMix,
+                )
                 drawPinchMaterial(MATERIAL_COMPOSITE, modeMix, time)
             }
         }
@@ -379,33 +376,6 @@ internal class PearMeshGlRenderer(
         return 1f
     }
 
-    private fun updateLyricsMix(target: Boolean, time: Double): Float {
-        if (!lyricsInitialized) {
-            lyricsInitialized = true
-            lyricsTarget = target
-            lyricsMix = if (target) 1f else 0f
-            lyricsMixFrom = lyricsMix
-            lyricsMixTo = lyricsMix
-            return lyricsMix
-        }
-        if (target != lyricsTarget) {
-            lyricsMix = evaluateLyricsMix(time)
-            lyricsTarget = target
-            lyricsMixFrom = lyricsMix
-            lyricsMixTo = if (target) 1f else 0f
-            lyricsTransitionStart = time
-        }
-        lyricsMix = evaluateLyricsMix(time)
-        return lyricsMix
-    }
-
-    private fun evaluateLyricsMix(time: Double): Float {
-        if (lyricsMix == lyricsMixTo) return lyricsMix
-        val progress = ((time - lyricsTransitionStart) / LYRICS_TRANSITION_SECONDS).toFloat()
-        if (progress >= 1f) return lyricsMixTo
-        return lerp(lyricsMixFrom, lyricsMixTo, uiKitEaseInOut(progress.coerceIn(0f, 1f)))
-    }
-
     private fun imageScales(state: RendererState, time: Double): FloatArray {
         val power = if (state.isDemoPulseEnabled) {
             val kick = max(0.0, sin(time * PI * 2.0 * 1.15)).pow(12.0)
@@ -478,30 +448,13 @@ internal class PearMeshGlRenderer(
         const val LYRICS_BLUR_SIGMA = 42.5f
         const val ORDINARY_BLUR_SIGMA = 80f
         const val ARTWORK_TRANSITION_SECONDS = 0.5
-        const val LYRICS_TRANSITION_SECONDS = 0.25
         const val MATERIAL_ORDINARY = 0
         const val MATERIAL_LYRICS = 1
         const val MATERIAL_COMPOSITE = 2
+        const val MATERIAL_LANDSCAPE_BACKGROUND = 3
 
         fun lerp(from: Float, to: Float, amount: Float): Float =
             from + (to - from) * amount
-
-        fun uiKitEaseInOut(progress: Float): Float {
-            if (progress <= 0f || progress >= 1f) return progress
-            var lower = 0f
-            var upper = 1f
-            var parameter = progress
-            repeat(12) {
-                parameter = (lower + upper) * 0.5f
-                val inverse = 1f - parameter
-                val x =
-                    3f * inverse * inverse * parameter * 0.42f +
-                            3f * inverse * parameter * parameter * 0.58f +
-                            parameter * parameter * parameter
-                if (x < progress) lower = parameter else upper = parameter
-            }
-            return parameter * parameter * (3f - 2f * parameter)
-        }
 
         fun createGrayArtwork(): Bitmap =
             createBitmap(1, 1).apply {
