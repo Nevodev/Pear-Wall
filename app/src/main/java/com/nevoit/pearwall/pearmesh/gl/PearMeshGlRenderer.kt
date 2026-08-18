@@ -3,10 +3,12 @@ package com.nevoit.pearwall.pearmesh.gl
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.opengl.GLES30
 import android.opengl.GLUtils
 import androidx.core.graphics.createBitmap
 import com.nevoit.pearwall.pearmesh.AudioPowerFrame
+import com.nevoit.pearwall.pearmesh.MoruStyle
 import com.nevoit.pearwall.pearmesh.PearMeshState
 import com.nevoit.pearwall.pearmesh.RendererState
 import java.io.Closeable
@@ -41,6 +43,25 @@ internal class PearMeshGlRenderer(
         "pearmesh/shaders/pinch.vert",
         "pearmesh/shaders/material.frag",
     )
+    private val moruProgram = GlProgram(
+        context,
+        "pearmesh/shaders/fullscreen.vert",
+        "pearmesh/shaders/moru.frag",
+    )
+    private val moruTextures = mapOf(
+        MoruStyle.NARROW to MoruTextures(
+            uploadAssetTexture(context, "pearmesh/moru/moru_narrow.png"),
+            uploadAssetTexture(context, "pearmesh/moru/depth_light_shadow_narrow.png"),
+        ),
+        MoruStyle.WIDE to MoruTextures(
+            uploadAssetTexture(context, "pearmesh/moru/moru_wide.png"),
+            uploadAssetTexture(context, "pearmesh/moru/depth_light_shadow_wide.png"),
+        ),
+        MoruStyle.SMOOTH to MoruTextures(
+            uploadAssetTexture(context, "pearmesh/moru/moru_smooth.png"),
+            uploadAssetTexture(context, "pearmesh/moru/depth_light_shadow_smooth.png"),
+        ),
+    )
     private val quad = GlGeometry.quad()
     private var mesh = GlGeometry.mesh(
         PearMeshMesh.create(
@@ -62,6 +83,7 @@ internal class PearMeshGlRenderer(
     private var lyricsBlurTarget: RenderTarget? = null
     private var ordinaryBlurTarget: RenderTarget? = null
     private var materialTarget: RenderTarget? = null
+    private var moruTarget: RenderTarget? = null
 
     val outputWidthForDebug: Int get() = outputWidth
     val outputHeightForDebug: Int get() = outputHeight
@@ -77,6 +99,7 @@ internal class PearMeshGlRenderer(
     private var pendingArtwork: Bitmap? = null
     private var pendingArtworkId = 0L
     private var artworkTransitionStart = Double.NEGATIVE_INFINITY
+    private var artworkAspect = initialArtwork?.bitmap?.let { it.width.toFloat() / it.height } ?: 1f
 
 
     init {
@@ -127,7 +150,7 @@ internal class PearMeshGlRenderer(
             ordinaryTexture = lyricTarget.texture
         }
 
-        renderMaterial(lyricTexture, ordinaryTexture, currentLyricsMix, time)
+        renderMaterial(lyricTexture, ordinaryTexture, currentLyricsMix, time, state.moruStyle)
     }
 
     private fun renderBackdrop(
@@ -199,13 +222,18 @@ internal class PearMeshGlRenderer(
         ordinaryTexture: Int,
         modeMix: Float,
         time: Double,
+        moruStyle: MoruStyle,
     ) {
-        val lowResolutionTarget = materialTarget
-        if (lowResolutionTarget == null) {
+        val destination = if (moruStyle != MoruStyle.OFF) {
+            checkNotNull(moruTarget)
+        } else {
+            materialTarget
+        }
+        if (destination == null) {
             GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
             GLES30.glViewport(0, 0, surfaceWidth, surfaceHeight)
         } else {
-            lowResolutionTarget.bind()
+            destination.bind()
         }
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
         bindTexture(0, lyricTexture)
@@ -229,25 +257,10 @@ internal class PearMeshGlRenderer(
             }
         }
 
-        if (lowResolutionTarget != null) {
-            GLES30.glBindFramebuffer(
-                GLES30.GL_READ_FRAMEBUFFER,
-                lowResolutionTarget.framebuffer,
-            )
-            GLES30.glBindFramebuffer(GLES30.GL_DRAW_FRAMEBUFFER, 0)
-            GLES30.glBlitFramebuffer(
-                0,
-                0,
-                lowResolutionTarget.width,
-                lowResolutionTarget.height,
-                0,
-                0,
-                surfaceWidth,
-                surfaceHeight,
-                GLES30.GL_COLOR_BUFFER_BIT,
-                GLES30.GL_LINEAR,
-            )
-            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+        if (moruStyle != MoruStyle.OFF) {
+            renderMoru(moruTarget!!.texture, moruStyle, time)
+        } else if (destination != null) {
+            blitToScreen(destination)
         }
     }
 
@@ -275,6 +288,62 @@ internal class PearMeshGlRenderer(
         program.float("uLyricsModeMix", modeMix)
         program.float("uDitherStrength", 1f)
         program.int("uMaterialMode", mode)
+    }
+
+    private fun renderMoru(source: Int, style: MoruStyle, time: Double) {
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+        GLES30.glViewport(0, 0, surfaceWidth, surfaceHeight)
+        moruProgram.use()
+        moruProgram.int("uSource", 0)
+        moruProgram.int("uNormal", 1)
+        moruProgram.int("uLight", 2)
+        moruProgram.int("uStyle", style.ordinal)
+        val screenAspect = surfaceWidth.toFloat() / surfaceHeight.coerceAtLeast(1)
+        // The source is already a screen-space FBO. Its artwork crop/MVP has
+        // already been applied by the rotation and mesh passes.
+        val mvpScaleX = 1f
+        val normalScaleX = when (style) {
+            MoruStyle.NARROW -> 0.15f
+            MoruStyle.WIDE -> 0.31f
+            MoruStyle.SMOOTH -> 0.24f
+            MoruStyle.OFF -> 1f
+        }
+        moruProgram.float("uAspect", 1f / artworkAspect)
+        moruProgram.float("uNormalScale", mvpScaleX / normalScaleX)
+        moruProgram.float("uIor", when (style) {
+            MoruStyle.NARROW -> 0.68f
+            MoruStyle.WIDE -> 0.58f
+            MoruStyle.SMOOTH -> 0.60f
+            MoruStyle.OFF -> 1f
+        })
+        moruProgram.float("uSurfaceRatio", minOf(screenAspect, 1f / screenAspect))
+        moruProgram.float("uDisplacement", when (style) {
+            MoruStyle.NARROW -> 0.36f
+            MoruStyle.WIDE -> 0.58f
+            MoruStyle.SMOOTH -> 0.37f
+            MoruStyle.OFF -> 0f
+        })
+        moruProgram.float("uThickness", when (style) {
+            MoruStyle.NARROW -> 0.30f
+            MoruStyle.WIDE -> 0.36f
+            MoruStyle.SMOOTH -> 0.06f
+            MoruStyle.OFF -> 0f
+        })
+        moruProgram.float("uDarkness", if (style == MoruStyle.WIDE) 0.10f else 0f)
+        moruProgram.float("uLightness", if (style == MoruStyle.WIDE) 0.65f else 0.40f)
+        moruProgram.float("uShadowness", if (style == MoruStyle.WIDE) 0.36f else 1f)
+        bindTexture(0, source)
+        val textures = moruTextures.getValue(style)
+        bindTexture(1, textures.normal)
+        bindTexture(2, textures.light)
+        quad.draw()
+    }
+
+    private fun blitToScreen(source: RenderTarget) {
+        GLES30.glBindFramebuffer(GLES30.GL_READ_FRAMEBUFFER, source.framebuffer)
+        GLES30.glBindFramebuffer(GLES30.GL_DRAW_FRAMEBUFFER, 0)
+        GLES30.glBlitFramebuffer(0, 0, source.width, source.height, 0, 0, surfaceWidth, surfaceHeight, GLES30.GL_COLOR_BUFFER_BIT, GLES30.GL_LINEAR)
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 
     private fun ensureSize(width: Int, height: Int, state: RendererState) {
@@ -316,6 +385,7 @@ internal class PearMeshGlRenderer(
         lyricsBlurTarget?.close()
         ordinaryBlurTarget?.close()
         materialTarget?.close()
+        moruTarget?.close()
         val backdropWidth = max(1, floor(outputWidth / BLUR_DOWNSAMPLE).toInt())
         val backdropHeight = max(1, floor(outputHeight / BLUR_DOWNSAMPLE).toInt())
         rotationTarget = RenderTarget.create(backdropWidth, backdropHeight)
@@ -338,6 +408,7 @@ internal class PearMeshGlRenderer(
         } else {
             RenderTarget.create(outputWidth, outputHeight)
         }
+        moruTarget = RenderTarget.create(outputWidth, outputHeight)
     }
 
     private fun updateArtwork(state: RendererState, time: Double) {
@@ -355,6 +426,7 @@ internal class PearMeshGlRenderer(
 
     private fun startArtworkTransition(bitmap: Bitmap, id: Long, time: Double) {
         if (bitmap.isRecycled) return
+        artworkAspect = bitmap.width.toFloat() / bitmap.height
         previousArtwork = currentArtwork
         currentArtwork = uploadTexture(bitmap)
         uploadedArtworkId = id
@@ -469,12 +541,33 @@ internal class PearMeshGlRenderer(
         blurProgram.close()
         fullscreenMaterialProgram.close()
         pinchMaterialProgram.close()
+        moruProgram.close()
+        moruTarget?.close()
         val textures = if (currentArtwork == previousArtwork) {
             intArrayOf(currentArtwork)
         } else {
             intArrayOf(currentArtwork, previousArtwork)
         }
         GLES30.glDeleteTextures(textures.size, textures, 0)
+        val moruHandles = moruTextures.values.flatMap { listOf(it.normal, it.light) }.toIntArray()
+        GLES30.glDeleteTextures(moruHandles.size, moruHandles, 0)
+    }
+
+    private data class MoruTextures(val normal: Int, val light: Int)
+
+    private fun uploadAssetTexture(context: Context, path: String): Int {
+        val bitmap = context.assets.open(path).use { BitmapFactory.decodeStream(it) }
+            ?: error("Unable to decode $path")
+        val handle = IntArray(1)
+        GLES30.glGenTextures(1, handle, 0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, handle[0])
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
+        GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, bitmap, 0)
+        bitmap.recycle()
+        return handle[0]
     }
 
     private companion object {

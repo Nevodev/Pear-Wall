@@ -22,6 +22,10 @@ data class AppColors(
     val background: Color,
     val pageBackground: Color,
     val cardBackground: Color,
+    val segmentedControlBackground: Color = scrimNormal,
+    val onSegmentedControlBackground: Color = contentVariant,
+    val segmentedControlIndicator: Color,
+    val onSegmentedControlIndicator: Color = content
 )
 
 val AppLightColors = AppColors(
@@ -38,6 +42,7 @@ val AppLightColors = AppColors(
     pageBackground = Color(0xFFF3F4F6),
     cardBackground = Color.White,
     scrimMedium = Color.Black.copy(alpha = 0.1f),
+    segmentedControlIndicator = Color.White
 )
 
 val AppDarkColors = AppColors(
@@ -54,6 +59,7 @@ val AppDarkColors = AppColors(
     pageBackground = Color.Black,
     cardBackground = Color(0xFF1B1C1D),
     scrimMedium = Color.White.copy(alpha = 0.2f),
+    segmentedControlIndicator = Color(0xFF636366),
 )
 
 internal val LocalAppColors = staticCompositionLocalOf { AppLightColors }

@@ -2,6 +2,7 @@ package com.nevoit.pearwall
 
 import android.content.Context
 import androidx.core.content.edit
+import com.nevoit.pearwall.pearmesh.MoruStyle
 
 class PearWallSettings(context: Context) {
     private val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -12,6 +13,18 @@ class PearWallSettings(context: Context) {
     var renderScale: Float
         get() = prefs.getFloat("render_scale", .25f)
         set(value) = prefs.edit { putFloat("render_scale", value) }
+    var moruStyle: MoruStyle
+        get() = when (val stored = prefs.all["moru_style"]) {
+            is String -> runCatching { MoruStyle.valueOf(stored) }.getOrDefault(MoruStyle.OFF)
+            is Number -> when (stored.toInt()) {
+                2 -> MoruStyle.NARROW
+                3 -> MoruStyle.WIDE
+                6 -> MoruStyle.SMOOTH
+                else -> MoruStyle.OFF
+            }
+            else -> MoruStyle.OFF
+        }
+        set(value) = prefs.edit { putString("moru_style", value.name) }
     var frameRate: Int
         get() = prefs.getInt("frame_rate", 30)
         set(value) = prefs.edit { putInt("frame_rate", value) }

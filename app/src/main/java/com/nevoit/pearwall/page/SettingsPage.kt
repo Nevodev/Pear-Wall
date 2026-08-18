@@ -121,6 +121,7 @@ fun SettingsPage() {
 
     var behavior by remember { mutableIntStateOf(settings.noArtworkBehavior) }
     var scale by remember { mutableFloatStateOf(settings.renderScale) }
+    var moruStyle by remember { mutableStateOf(settings.moruStyle) }
     var fps by remember { mutableFloatStateOf(settings.frameRate.toFloat()) }
     var randomize by remember { mutableStateOf(settings.randomizeOnScreenOn) }
     var audioVisualization by remember { mutableStateOf(settings.audioVisualizationEnabled) }
@@ -224,6 +225,7 @@ fun SettingsPage() {
         )
     }
     var isCreditsBottomSheetVisible by remember { mutableStateOf(false) }
+    var isAdvancedBottomSheetVisible by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         PearMeshSurface(state, Modifier.fillMaxSize())
@@ -413,56 +415,11 @@ fun SettingsPage() {
                     VGap()
                 }
                 item {
-                    SettingsCard("预设方案") {
-                        ToggleRow("亮屏时随机切换", checked = randomize) {
-                            randomize = it; settings.randomizeOnScreenOn = it
-                        }
-                        SwitchDivider()
-                        PresetSectionHeader("竖屏方案", R.drawable.ic_phone_vertical)
-                        PresetSegmentedControl(PearMeshState.PortraitPresetCount, portrait) {
-                            portrait = it
-                            settings.portraitPreset = it
-                            state.setPortraitPreset(it)
-                            PearWallRuntime.applySettings(context)
-                        }
-                        TwoSideDivider()
-                        PresetSectionHeader("横屏方案", R.drawable.ic_phone_horizontal)
-                        PresetSegmentedControl(PearMeshState.LandscapePresetCount, landscape) {
-                            landscape = it
-                            settings.landscapePreset = it
-                            state.setLandscapePreset(it)
-                            PearWallRuntime.applySettings(context)
-                        }
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard("渲染") {
-                        SliderRow(
-                            label = "渲染倍率",
-                            valueLabel = "${(scale * 100).roundToInt()}%",
-                            value = scale,
-                            valueRange = .1f..1f,
-                            onValueChange = {
-                                scale = it
-                                state.setRenderScale(it)
-                            },
-                            onValueChangeFinished = { settings.renderScale = scale },
-                        )
-                        TwoSideDivider()
-                        SliderRow(
-                            label = "帧数",
-                            valueLabel = "${fps.roundToInt()} FPS",
-                            value = fps,
-                            valueRange = 10f..60f,
-                            steps = 4,
-                            onValueChange = {
-                                fps = it
-                                state.setTargetFrameRate(it.roundToInt())
-                            },
-                            onValueChangeFinished = { settings.frameRate = fps.roundToInt() },
-                            extraBottomPadding = 12.dp
+                    SettingsCard {
+                        ItemRow(
+                            iconRes = R.drawable.ic_engine,
+                            title = "高级",
+                            onClick = { isAdvancedBottomSheetVisible = true },
                         )
                     }
                     VGap()
@@ -535,6 +492,49 @@ fun SettingsPage() {
         }
         if (isCreditsBottomSheetVisible) {
             CreditsBottomSheet(onDismissed = { isCreditsBottomSheetVisible = false })
+        }
+        if (isAdvancedBottomSheetVisible) {
+            AdvancedBottomSheet(
+                scale = scale,
+                fps = fps,
+                moruStyle = moruStyle,
+                portrait = portrait,
+                landscape = landscape,
+                randomize = randomize,
+                onPortraitChanged = {
+                    portrait = it
+                    settings.portraitPreset = it
+                    state.setPortraitPreset(it)
+                    PearWallRuntime.applySettings(context)
+                },
+                onLandscapeChanged = {
+                    landscape = it
+                    settings.landscapePreset = it
+                    state.setLandscapePreset(it)
+                    PearWallRuntime.applySettings(context)
+                },
+                onRandomizeChanged = {
+                    randomize = it
+                    settings.randomizeOnScreenOn = it
+                },
+                onScaleChanged = {
+                    scale = it
+                    state.setRenderScale(it)
+                    settings.renderScale = it
+                },
+                onFpsChanged = {
+                    fps = it
+                    state.setTargetFrameRate(it.roundToInt())
+                    settings.frameRate = it.roundToInt()
+                },
+                onMoruChanged = {
+                    moruStyle = it
+                    settings.moruStyle = it
+                    state.setMoruStyle(it)
+                    PearWallRuntime.applySettings(context)
+                },
+                onDismissed = { isAdvancedBottomSheetVisible = false },
+            )
         }
     }
 }
@@ -687,7 +687,7 @@ private fun openWallpaperPickerWithoutXiaomiCheck(context: android.content.Conte
 
 @Composable
 private fun SettingsCard(
-    title: String,
+    title: String? = null,
     useCachedClip: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -696,17 +696,19 @@ private fun SettingsCard(
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
     ) {
-        Text(
-            text = title,
-            style = AppTheme.typography.subHeadline,
-            color = Color.White,
-            modifier = Modifier
-                .padding(horizontal = 12.dp)
-                .graphicsLayer {
-                    alpha = 0.6f
-                    blendMode = BlendMode.Plus
-                })
-        VGap(8.dp)
+        title?.let {
+            Text(
+                text = title,
+                style = AppTheme.typography.subHeadline,
+                color = Color.White,
+                modifier = Modifier
+                    .padding(horizontal = 12.dp)
+                    .graphicsLayer {
+                        alpha = 0.6f
+                        blendMode = BlendMode.Plus
+                    })
+            VGap(8.dp)
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1092,19 +1094,6 @@ private fun PearSlider(
     )
 }
 
-private fun snapSliderValue(
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
-): Float {
-    val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
-    if (steps <= 0) return coercedValue
-    val intervalCount = steps + 1
-    val interval = (valueRange.endInclusive - valueRange.start) / intervalCount
-    return valueRange.start +
-            ((coercedValue - valueRange.start) / interval).roundToInt() * interval
-}
-
 @Composable
 private fun TwoSideDivider() {
     Box(
@@ -1175,7 +1164,7 @@ private fun ToggleRow(
 }
 
 @Composable
-private fun PresetSectionHeader(text: String, iconRes: Int) {
+internal fun PresetSectionHeader(text: String, iconRes: Int) {
     Row(
         modifier = Modifier
             .graphicsLayer {
@@ -1216,12 +1205,12 @@ private fun EffectOptionRow(
 }
 
 @Composable
-private fun PresetSegmentedControl(count: Int, selected: Int, select: (Int) -> Unit) {
+internal fun PresetSegmentedControl(count: Int, selected: Int, select: (Int) -> Unit) {
     PresetSegmentedControl(List(count) { "${it + 1}" }, selected, select)
 }
 
 @Composable
-private fun PresetSegmentedControl(options: List<String>, selected: Int, select: (Int) -> Unit) {
+internal fun PresetSegmentedControl(options: List<String>, selected: Int, select: (Int) -> Unit) {
     val count = options.size
     val spacing = 4.dp
     val selectedIndex = selected.toFloat().coerceIn(0f, (count - 1).toFloat())
@@ -1294,7 +1283,6 @@ private fun PresetSegment(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
     Box(
         modifier = modifier
             .height(32.dp)
@@ -1303,8 +1291,7 @@ private fun PresetSegment(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
-            )
-            .graphicsLayer { alpha = if (pressed) 0.7f else 1f },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(

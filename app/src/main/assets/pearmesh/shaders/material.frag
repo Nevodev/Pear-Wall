@@ -8,7 +8,6 @@ uniform float uBlackScrimAlpha;
 uniform float uLyricsModeMix;
 uniform float uDitherStrength;
 uniform int uMaterialMode;
-
 in vec2 vTexCoord;
 in vec2 vOrdinaryTexCoord;
 layout(location = 0) out vec4 outColor;
@@ -38,6 +37,48 @@ vec3 treated(sampler2D source, vec2 coordinate) {
     color = clamp(color, vec3(-0.752941), vec3(1.25098));
     return mix(color, vec3(0.0), uBlackScrimAlpha);
 }
+
+/* Moru is applied in a separate fullscreen pass after the mesh material. */
+/*
+vec3 moruSample(vec2 screenCoordinate, vec2 localCoordinate, vec2 sampleOffset) {
+    // Moru keeps local texture coordinates separate from the transformed
+    // wallpaper coordinate used for the refracted lookup.
+    vec2 u = localCoordinate + sampleOffset;
+    vec2 local = vec2(
+        fract((u.x - 0.5) * uMoruNormalScale + 0.5),
+        fract(u.y * uMoruAspect + 0.5 * uMoruAspect)
+    );
+
+    vec3 upperNormal = normalize(texture(uMoruNormal, local).xyz * 2.0 - 1.0);
+    vec3 lowerNormal = vec3(0.0, 1.0, 0.0);
+    vec4 lightShadow = texture(uMoruLight, local);
+    float depth = -lightShadow.r * uMoruDisplacement - uMoruThickness;
+
+    vec3 upperOut = normalize(refract(vec3(0.0, 1.0, 0.0), upperNormal, uMoruIor));
+    vec3 upperPath = upperOut * depth;
+    vec3 lowerOut = normalize(refract(upperOut, lowerNormal, uMoruIor));
+    vec3 path = upperPath + lowerOut * uMoruThickness;
+    vec2 refractOffset = vec2(path.x * uMoruSurfaceRatio * uMoruIor, 0.0);
+
+    vec3 result = texture(
+        uOrdinaryBackdrop,
+        clamp(screenCoordinate + refractOffset, 0.001, 0.999)
+    ).rgb;
+    result *= 1.0 - uMoruDarkness;
+    result *= mix(vec3(1.0), lightShadow.bbb, uMoruShadowness);
+    result = mix(result, vec3(1.0), lightShadow.g * uMoruLightness);
+    return result;
+}
+
+vec3 applyMoru(vec3 color, vec2 screenCoordinate, vec2 localCoordinate) {
+    if (uMoruStyle == 0) return color;
+    const float sampleStep = 1.736e-4;
+    vec3 refracted = moruSample(screenCoordinate, localCoordinate, vec2(0.0));
+    refracted += moruSample(screenCoordinate, localCoordinate, vec2(-sampleStep));
+    refracted += moruSample(screenCoordinate, localCoordinate, vec2(sampleStep));
+    return mix(color, refracted / 3.0, 0.82);
+}
+*/
 
 void main() {
     vec3 color;

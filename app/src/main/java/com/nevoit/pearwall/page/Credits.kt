@@ -232,7 +232,8 @@ fun ConfigInfoHeader(
 }
 
 @Composable
-private fun TopBar(
+fun TopBar(
+    title: String = "致谢",
     backdrop: LayerBackdrop,
     visible: Boolean,
     onClose: () -> Unit
@@ -281,7 +282,7 @@ return mix(content.eval(coord) * blurAlpha, tint * tintAlpha, tintIntensity);
             .padding(bottom = 32.dp + 48.dp)) {
     }
     ModalTopBar(
-        title = "致谢",
+        title = title,
         leading = {
             Action(
                 icon = painterResource(id = R.drawable.ic_forward_nav),

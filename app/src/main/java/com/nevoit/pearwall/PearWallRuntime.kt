@@ -30,6 +30,7 @@ object PearWallRuntime {
             flowSpeed = settings.flowSpeed,
             audioVisualizationEnabled = settings.audioVisualizationEnabled,
             pauseFlowEnabled = settings.pauseFlowEnabled,
+            moruStyle = settings.moruStyle,
         ).also { state ->
             states += state
             state.setPlaybackPlaying(playbackPlaying.get())
@@ -153,6 +154,7 @@ object PearWallRuntime {
             it.setFlowSpeed(settings.flowSpeed)
             it.setAudioVisualizationEnabled(settings.audioVisualizationEnabled)
             it.setPauseFlowEnabled(settings.pauseFlowEnabled)
+            it.setMoruStyle(settings.moruStyle)
             it.setPortraitPreset(settings.portraitPreset)
             it.setLandscapePreset(settings.landscapePreset)
         }

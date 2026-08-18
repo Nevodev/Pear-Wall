@@ -359,6 +359,62 @@ class SectionScope internal constructor(
             content = content
         )
     }
+
+    fun PaddedSwitchRow(
+        key: Any? = null,
+        contentType: Any? = null,
+        separator: Boolean = true,
+        enabled: Boolean = true,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        horizontalPadding: Dp = 12.dp,
+        leading: (@Composable ListRowScope.() -> Unit)? = null,
+        destructive: Boolean = false,
+        trailing: (@Composable ListRowScope.() -> Unit)? = null,
+        content: @Composable ListRowScope.() -> Unit
+    ) {
+        val currentRowIndex = rows.count
+        rows.count += 1
+
+        lazyListScope.renderSectionRow(
+            key = key,
+            contentType = contentType ?: switchRowContentType(
+                leading = leading,
+                trailing = trailing
+            ),
+            separator = separator,
+            enabled = enabled,
+            onClick = { onCheckedChange(!checked) },
+            leading = leading,
+            trailing = {
+                SwitchRowTrailingLayout(
+                    rowScope = this,
+                    trailing = trailing,
+                    switch = {
+                        Switch(
+                            enabled = enabled,
+                            interactionSource = remember { MutableInteractionSource() },
+                            checked = checked,
+                            onCheckedChange = onCheckedChange,
+                            disabledAlpha = 1f
+                        )
+                    }
+                )
+            },
+            accessory = ListRowAccessory.None,
+            destructive = destructive,
+            content = content,
+            rows = rows,
+            sectionIndex = sectionIndex,
+            rowIndex = currentRowIndex,
+            style = style,
+            colors = colors,
+            cornerRadius = cornerRadius,
+            rowPadding = PaddingValues(horizontal = horizontalPadding),
+            separatorHorizontalPadding = separatorHorizontalPadding,
+            separatorPaddingStart = separatorPaddingStart
+        )
+    }
 }
 
 @Composable

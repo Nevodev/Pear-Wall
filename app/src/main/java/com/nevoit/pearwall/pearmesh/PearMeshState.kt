@@ -12,6 +12,13 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import com.nevoit.pearwall.pearmesh.gl.RenderDebugInfo
 
+enum class MoruStyle {
+    OFF,
+    NARROW,
+    WIDE,
+    SMOOTH,
+}
+
 @Stable
 class PearMeshState(
     behindLyricsProgress: Float = 1f,
@@ -24,6 +31,7 @@ class PearMeshState(
     flowSpeed: Int = StandardFlowSpeed,
     audioVisualizationEnabled: Boolean = false,
     pauseFlowEnabled: Boolean = true,
+    moruStyle: MoruStyle = MoruStyle.OFF,
 ) {
     private val artworkId = AtomicLong(0L)
     private val artwork = AtomicReference<ArtworkFrame?>(null)
@@ -50,6 +58,7 @@ class PearMeshState(
     private val flowSpeedTarget = AtomicInteger(flowSpeed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
     private val audioVisualization = AtomicReference(audioVisualizationEnabled)
     private val pauseFlow = AtomicReference(pauseFlowEnabled)
+    private val moruStyleTarget = AtomicReference(moruStyle)
     private val playbackPlaying = AtomicReference(true)
     @Volatile
     private var artworkChangedListener: (() -> Unit)? = null
@@ -129,6 +138,10 @@ class PearMeshState(
         pauseFlow.set(enabled)
     }
 
+    fun setMoruStyle(style: MoruStyle) {
+        moruStyleTarget.set(style)
+    }
+
     fun setPlaybackPlaying(playing: Boolean) {
         playbackPlaying.set(playing)
     }
@@ -181,6 +194,7 @@ class PearMeshState(
         flowSpeed = flowSpeedTarget.get(),
         audioVisualizationEnabled = audioVisualization.get(),
         pauseFlowEnabled = pauseFlow.get(),
+        moruStyle = moruStyleTarget.get(),
         isPlaybackPlaying = playbackPlaying.get(),
     )
 
@@ -225,5 +239,6 @@ data class RendererState(
     val flowSpeed: Int,
     val audioVisualizationEnabled: Boolean,
     val pauseFlowEnabled: Boolean,
+    val moruStyle: MoruStyle,
     val isPlaybackPlaying: Boolean,
 )

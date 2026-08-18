@@ -27,3 +27,5 @@ app/build/generated/rust-jniLibs/
 *.apk
 *.aab
 /nul
+
+.tmp
