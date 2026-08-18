@@ -22,6 +22,7 @@ class PearMeshState(
     scrimAlpha: Float = DefaultScrimAlpha,
     blurMultiplier: Float = DefaultBlurMultiplier,
     flowSpeed: Int = StandardFlowSpeed,
+    audioVisualizationEnabled: Boolean = false,
 ) {
     private val artworkId = AtomicLong(0L)
     private val artwork = AtomicReference<ArtworkFrame?>(null)
@@ -29,7 +30,7 @@ class PearMeshState(
         behindLyricsProgress.coerceIn(0f, 1f).toRawBits(),
     )
     private val demoPulse = AtomicReference(false)
-    private val audioPower = AtomicReference(FloatArray(4))
+    private val audioFrame = AtomicReference(AudioPowerFrame())
     private val debugInfo = AtomicReference(RenderDebugInfo())
     private val portraitPreset = AtomicInteger(
         portraitPresetIndex.coerceIn(0, PortraitPresetCount - 1),
@@ -46,6 +47,7 @@ class PearMeshState(
     private val scrimAlphaTarget = AtomicReference(scrimAlpha.coerceIn(0f, 1f))
     private val blurMultiplierTarget = AtomicReference(blurMultiplier.coerceAtLeast(0f))
     private val flowSpeedTarget = AtomicInteger(flowSpeed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
+    private val audioVisualization = AtomicReference(audioVisualizationEnabled)
     @Volatile
     private var artworkChangedListener: (() -> Unit)? = null
 
@@ -115,6 +117,11 @@ class PearMeshState(
         flowSpeedTarget.set(speed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
     }
 
+    fun setAudioVisualizationEnabled(enabled: Boolean) {
+        audioVisualization.set(enabled)
+        if (!enabled) setAudioPower(FloatArray(4))
+    }
+
     /** The state retains this bitmap so a recreated Android surface can upload it again. */
     fun setRenderDebugInfo(info: RenderDebugInfo) {
         debugInfo.set(info)
@@ -138,14 +145,22 @@ class PearMeshState(
      */
     fun setAudioPower(power: FloatArray) {
         require(power.size >= 4) { "Four audio power values are required" }
-        audioPower.set(FloatArray(4) { power[it].coerceIn(0f, 1f) })
+        val previous = audioFrame.get()
+        audioFrame.set(
+            AudioPowerFrame(
+                previousPower = previous.currentPower,
+                currentPower = FloatArray(4) { power[it].coerceIn(0f, 1f) },
+                previousUpdatedAtNanos = previous.currentUpdatedAtNanos,
+                currentUpdatedAtNanos = System.nanoTime(),
+            ),
+        )
     }
 
     fun snapshot(): RendererState = RendererState(
         artwork = artwork.get(),
         behindLyricsProgress = Float.fromBits(lyricsProgressBits.get()),
         isDemoPulseEnabled = demoPulse.get(),
-        audioPower = audioPower.get(),
+        audioFrame = audioFrame.get(),
         portraitPresetIndex = portraitPreset.get(),
         landscapePresetIndex = landscapePreset.get(),
         renderScale = renderScaleTarget.get(),
@@ -153,6 +168,7 @@ class PearMeshState(
         scrimAlpha = scrimAlphaTarget.get(),
         blurMultiplier = blurMultiplierTarget.get(),
         flowSpeed = flowSpeedTarget.get(),
+        audioVisualizationEnabled = audioVisualization.get(),
     )
 
     companion object {
@@ -175,11 +191,18 @@ class PearMeshState(
 
 data class ArtworkFrame(val id: Long, val bitmap: Bitmap)
 
+data class AudioPowerFrame(
+    val previousPower: FloatArray = FloatArray(4),
+    val currentPower: FloatArray = FloatArray(4),
+    val previousUpdatedAtNanos: Long = 0L,
+    val currentUpdatedAtNanos: Long = 0L,
+)
+
 data class RendererState(
     val artwork: ArtworkFrame?,
     val behindLyricsProgress: Float,
     val isDemoPulseEnabled: Boolean,
-    val audioPower: FloatArray,
+    val audioFrame: AudioPowerFrame,
     val portraitPresetIndex: Int,
     val landscapePresetIndex: Int,
     val renderScale: Float,
@@ -187,4 +210,5 @@ data class RendererState(
     val scrimAlpha: Float,
     val blurMultiplier: Float,
     val flowSpeed: Int,
+    val audioVisualizationEnabled: Boolean,
 )

@@ -33,6 +33,9 @@ class PearWallSettings(context: Context) {
     var flowSpeed: Int
         get() = prefs.getInt("flow_speed", STANDARD_FLOW_SPEED)
         set(value) = prefs.edit { putInt("flow_speed", value) }
+    var audioVisualizationEnabled: Boolean
+        get() = prefs.getBoolean("audio_visualization", false)
+        set(value) = prefs.edit { putBoolean("audio_visualization", value) }
     var customArtworkUri: String?
         get() = prefs.getString("custom_artwork_uri", null)
         set(value) = prefs.edit { putString("custom_artwork_uri", value) }

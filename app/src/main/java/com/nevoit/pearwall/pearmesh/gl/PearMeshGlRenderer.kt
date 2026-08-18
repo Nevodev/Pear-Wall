@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.opengl.GLES30
 import android.opengl.GLUtils
 import androidx.core.graphics.createBitmap
+import com.nevoit.pearwall.pearmesh.AudioPowerFrame
 import com.nevoit.pearwall.pearmesh.PearMeshState
 import com.nevoit.pearwall.pearmesh.RendererState
 import java.io.Closeable
@@ -383,16 +384,44 @@ internal class PearMeshGlRenderer(
     }
 
     private fun imageScales(state: RendererState, time: Double): FloatArray {
-        val power = if (state.isDemoPulseEnabled) {
+        val demoPower = if (state.isDemoPulseEnabled) {
             val kick = max(0.0, sin(time * PI * 2.0 * 1.15)).pow(12.0)
             val body = max(0.0, sin(time * PI * 2.0 * 0.575 + 0.7)).pow(8.0)
             (kick * 0.86 + body * 0.14).toFloat()
         } else {
             -1f
         }
+        val nowNanos = System.nanoTime()
+        val audioFrame = state.audioFrame
+        val audioCurrent = state.audioVisualizationEnabled &&
+            audioFrame.currentUpdatedAtNanos != 0L &&
+            nowNanos - audioFrame.currentUpdatedAtNanos <= AUDIO_REPORT_TIMEOUT_NANOS
+        val lanePower = if (demoPower >= 0f) {
+            FloatArray(3) { demoPower }
+        } else if (audioCurrent) {
+            interpolatedAudioPower(audioFrame, nowNanos)
+        } else {
+            FloatArray(3)
+        }
         return FloatArray(3) { index ->
-            val lane = if (power >= 0f) power else state.audioPower[index]
-            1f + lane.coerceIn(0f, 1f) * 0.1f
+            1f + IMAGE_PULSE_INTENSITY * lanePower[index] * lanePower[index]
+        }
+    }
+
+    private fun interpolatedAudioPower(frame: AudioPowerFrame, nowNanos: Long): FloatArray {
+        val reportNanos = frame.currentUpdatedAtNanos - frame.previousUpdatedAtNanos
+        if (frame.previousUpdatedAtNanos == 0L || reportNanos <= 0L) {
+            return FloatArray(3) { frame.currentPower[it].coerceIn(0f, 1f) }
+        }
+
+        // Delay the sample by one report interval so both interpolation endpoints exist.
+        val sampleNanos = nowNanos - reportNanos
+        val mix = ((sampleNanos - frame.previousUpdatedAtNanos).toDouble() / reportNanos)
+            .toFloat()
+            .coerceIn(0f, 1f)
+        return FloatArray(3) { index ->
+            lerp(frame.previousPower[index], frame.currentPower[index], mix)
+                .coerceIn(0f, 1f)
         }
     }
 
@@ -454,6 +483,8 @@ internal class PearMeshGlRenderer(
         const val LYRICS_BLUR_SIGMA = 42.5f
         const val ORDINARY_BLUR_SIGMA = 80f
         const val ARTWORK_TRANSITION_SECONDS = 0.5
+        const val IMAGE_PULSE_INTENSITY = 0.33f
+        const val AUDIO_REPORT_TIMEOUT_NANOS = 250_000_000L
         const val MATERIAL_ORDINARY = 0
         const val MATERIAL_LYRICS = 1
         const val MATERIAL_COMPOSITE = 2

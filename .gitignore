@@ -13,3 +13,17 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Android/Gradle build outputs
+**/build/
+app/release/
+app/build/generated/rust-jniLibs/
+.kotlin/
+
+# Rust build outputs
+**/target/
+
+# Local/native packaging artifacts
+*.apk
+*.aab
+/nul

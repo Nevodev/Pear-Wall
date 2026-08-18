@@ -1,8 +1,10 @@
 package com.nevoit.pearwall.page
 
+import android.Manifest
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
@@ -121,6 +123,7 @@ fun SettingsPage() {
     var scale by remember { mutableFloatStateOf(settings.renderScale) }
     var fps by remember { mutableFloatStateOf(settings.frameRate.toFloat()) }
     var randomize by remember { mutableStateOf(settings.randomizeOnScreenOn) }
+    var audioVisualization by remember { mutableStateOf(settings.audioVisualizationEnabled) }
     var portrait by remember { mutableIntStateOf(settings.portraitPreset) }
     var landscape by remember { mutableIntStateOf(settings.landscapePreset) }
     var scrimSelection by remember { mutableIntStateOf(if (settings.scrimAlpha < 0.4f) 0 else 1) }
@@ -139,6 +142,11 @@ fun SettingsPage() {
     var hasNotificationAccess by remember {
         mutableStateOf(hasNotificationListenerAccess(context))
     }
+
+    var hasAudioPermission by remember {
+        mutableStateOf(hasAudioPermission(context))
+    }
+
     var isCurrentWallpaper by remember {
         mutableStateOf(isPearWallCurrentWallpaper(context))
     }
@@ -148,11 +156,23 @@ fun SettingsPage() {
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasNotificationAccess = hasNotificationListenerAccess(context)
                 isCurrentWallpaper = isPearWallCurrentWallpaper(context)
+                hasAudioPermission = hasAudioPermission(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        hasAudioPermission = granted || hasAudioPermission(context)
+    }
+
+    fun requestAudioPermission() {
+        if (hasAudioPermission) return
+        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
     val imagePicker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@rememberLauncherForActivityResult
@@ -257,6 +277,17 @@ fun SettingsPage() {
                             },
                             onClick = { openNotificationListenerSettings(context) },
                         )
+                        SwitchDivider()
+                        ItemRow(
+                            iconRes = R.drawable.ic_microphone,
+                            title = "麦克风权限",
+                            subtitle = if (hasAudioPermission) {
+                                "已获取"
+                            } else {
+                                "用于捕获系统输出音频"
+                            },
+                            onClick = { requestAudioPermission() },
+                        )
                     }
                     VGap()
                     VGap()
@@ -285,6 +316,36 @@ fun SettingsPage() {
                             ImagePickerRow {
                                 imagePicker.launch(arrayOf("image/*"))
                             }
+                        }
+                    }
+                    VGap()
+                    VGap()
+                }
+                item {
+                    SettingsCard("可视化") {
+                        ToggleRow(
+                            "开启音频可视化",
+                            "可能会显著增加电量消耗",
+                            iconRes = R.drawable.ic_waveform,
+                            checked = audioVisualization
+                        ) { enabled ->
+                            if (enabled && !hasAudioPermission) {
+                                requestAudioPermission()
+                                audioVisualization = true
+                                PearWallRuntime.setAudioVisualizationEnabled(context, true)
+                            } else {
+                                audioVisualization = enabled
+                                PearWallRuntime.setAudioVisualizationEnabled(context, enabled)
+                            }
+                        }
+                        SwitchDivider()
+                        EffectOptionRow(
+                            "分析引擎",
+                            R.drawable.ic_engine,
+                            listOf("AMI", "RE", "FE"),
+                            blurSelection
+                        ) {
+
                         }
                     }
                     VGap()
@@ -335,7 +396,7 @@ fun SettingsPage() {
                 }
                 item {
                     SettingsCard("预设方案") {
-                        ToggleRow("亮屏时随机切换", randomize) {
+                        ToggleRow("亮屏时随机切换", checked = randomize) {
                             randomize = it; settings.randomizeOnScreenOn = it
                         }
                         SwitchDivider()
@@ -462,6 +523,9 @@ fun SettingsPage() {
 
 private fun hasNotificationListenerAccess(context: android.content.Context): Boolean =
     context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
+
+private fun hasAudioPermission(context: android.content.Context): Boolean =
+    context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
 private fun isPearWallCurrentWallpaper(context: android.content.Context): Boolean {
     val wallpaperInfo = runCatching {
@@ -1038,17 +1102,23 @@ private fun TwoSideDivider() {
 }
 
 @Composable
-private fun ToggleRow(text: String, checked: Boolean, change: (Boolean) -> Unit) {
+private fun ToggleRow(
+    text: String,
+    subtitle: String? = null,
+    iconRes: Int = R.drawable.ic_shuffle,
+    checked: Boolean,
+    change: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .heightIn(56.dp)
             .clickable { change(!checked) }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_shuffle),
+            painter = painterResource(iconRes),
             contentDescription = null,
             modifier = Modifier
                 .graphicsLayer {
@@ -1057,17 +1127,28 @@ private fun ToggleRow(text: String, checked: Boolean, change: (Boolean) -> Unit)
                 .size(24.dp),
             tint = Color.White.copy(alpha = 0.6f),
         )
-        Text(
-            text = text,
-            style = AppTheme.typography.body,
-            color = Color.White.copy(alpha = 0.8f),
+        Column(
             modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+                .padding(vertical = if (subtitle != null) 12.dp else 0.dp)
                 .graphicsLayer {
                     blendMode = BlendMode.Plus
-                }
-                .weight(1f)
-                .padding(start = 12.dp),
-        )
+                },
+        ) {
+            Text(
+                text = text,
+                style = AppTheme.typography.body,
+                color = Color.White.copy(alpha = 0.8f)
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = AppTheme.typography.subHeadline,
+                    color = Color.White.copy(alpha = 0.4f)
+                )
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = change,

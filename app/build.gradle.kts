@@ -1,8 +1,13 @@
+import java.util.Properties
+import org.gradle.api.tasks.Exec
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.aboutLibraries)
 }
+
+val classicNdkVersion = "28.2.13676358"
 
 fun signingProperty(name: String) =
     providers.gradleProperty(name).orElse(providers.environmentVariable(name))
@@ -29,6 +34,7 @@ android {
     compileSdk {
         version = release(37)
     }
+    ndkVersion = classicNdkVersion
 
     defaultConfig {
         applicationId = "com.nevoit.pearwall"
@@ -96,6 +102,34 @@ dependencies {
     implementation(libs.aboutlibraries.compose.core)
     implementation(libs.backdrop)
 }
+
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").inputStream().use(::load)
+}
+val sdkDirectory = file(localProperties.getProperty("sdk.dir").replace("\\:", ":"))
+val nativeOutputDirectory = layout.buildDirectory.dir("generated/rust-jniLibs")
+val buildClassicNative = tasks.register<Exec>("buildClassicNative") {
+    val ndkDirectory = sdkDirectory.resolve("ndk/$classicNdkVersion")
+    workingDir(rootProject.file("classic"))
+    inputs.dir(rootProject.file("classic"))
+    outputs.dir(nativeOutputDirectory)
+    environment("ANDROID_NDK_HOME", ndkDirectory.absolutePath)
+    commandLine(
+        "cargo",
+        "ndk",
+        "-t",
+        "arm64-v8a",
+        "-o",
+        nativeOutputDirectory.get().asFile.absolutePath,
+        "build",
+        "--release",
+    )
+}
+
+android.sourceSets["main"].jniLibs.directories.add(
+    nativeOutputDirectory.get().asFile.absolutePath,
+)
+tasks.named("preBuild").configure { dependsOn(buildClassicNative) }
 
 aboutLibraries {
     collect {

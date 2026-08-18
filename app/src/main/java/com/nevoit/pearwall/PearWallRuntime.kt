@@ -5,10 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import com.nevoit.pearwall.media.ArtworkCache
+import com.nevoit.pearwall.audio.GlobalAudioMeter
 import com.nevoit.pearwall.pearmesh.PearMeshState
 import java.util.concurrent.CopyOnWriteArraySet
 
 object PearWallRuntime {
+    private var audioMeter: GlobalAudioMeter? = null
     private val states = CopyOnWriteArraySet<PearMeshState>()
     private var lastPublishedArtwork: Bitmap? = null
 
@@ -22,14 +24,47 @@ object PearWallRuntime {
             scrimAlpha = settings.scrimAlpha,
             blurMultiplier = settings.blurMultiplier,
             flowSpeed = settings.flowSpeed,
+            audioVisualizationEnabled = settings.audioVisualizationEnabled,
         ).also { state ->
             states += state
+            if (settings.audioVisualizationEnabled) startAudioMeter()
             initialArtwork(context, settings)?.let(state::setArtwork)
         }
     }
 
     fun release(state: PearMeshState) {
         states -= state
+        if (states.none { it.snapshot().audioVisualizationEnabled }) stopAudioMeter()
+    }
+
+    @Synchronized
+    fun setAudioVisualizationEnabled(context: Context, enabled: Boolean) {
+        PearWallSettings(context).audioVisualizationEnabled = enabled
+        states.forEach { it.setAudioVisualizationEnabled(enabled) }
+        if (enabled) startAudioMeter() else stopAudioMeter()
+    }
+
+    @Synchronized
+    private fun startAudioMeter() {
+        if (audioMeter != null) return
+        audioMeter = GlobalAudioMeter(
+            onLevel = {},
+            onBass = { bass -> publishAudio(floatArrayOf(bass, bass, bass, bass)) },
+            onStatus = {},
+        ).also { it.start() }
+    }
+
+    @Synchronized
+    private fun stopAudioMeter() {
+        audioMeter?.stop()
+        audioMeter = null
+        states.forEach { it.setAudioPower(FloatArray(4)) }
+    }
+
+    private fun publishAudio(power: FloatArray) {
+        states.forEach { state ->
+            if (state.snapshot().audioVisualizationEnabled) state.setAudioPower(power)
+        }
     }
 
     @Synchronized
@@ -63,6 +98,7 @@ object PearWallRuntime {
             it.setScrimAlpha(settings.scrimAlpha)
             it.setBlurMultiplier(settings.blurMultiplier)
             it.setFlowSpeed(settings.flowSpeed)
+            it.setAudioVisualizationEnabled(settings.audioVisualizationEnabled)
             it.setPortraitPreset(settings.portraitPreset)
             it.setLandscapePreset(settings.landscapePreset)
         }
