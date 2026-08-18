@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import android.os.SystemClock
+import android.util.Log
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -32,10 +34,13 @@ fun PearMeshSurface(
     DisposableEffect(lifecycleOwner) {
         val lifecycle = lifecycleOwner.lifecycle
         fun updateRenderingState() {
+            val start = SystemClock.uptimeMillis()
             val enabled = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            Log.d(TAG, "updateRenderingState enabled=$enabled eventState=${lifecycle.currentState} thread=${Thread.currentThread().name}")
             renderingEnabled.set(enabled)
             PearWallRuntime.setAudioConsumerActive(state, enabled)
             renderThread.get()?.setRenderingEnabled(enabled)
+            Log.d(TAG, "updateRenderingState done cost=${SystemClock.uptimeMillis() - start}ms")
         }
 
         val observer = LifecycleEventObserver { _, _ -> updateRenderingState() }
@@ -80,3 +85,5 @@ fun PearMeshSurface(
         }
     }
 }
+
+private const val TAG = "PearMeshSurface"

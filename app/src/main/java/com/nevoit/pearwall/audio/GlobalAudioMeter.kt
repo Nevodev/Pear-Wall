@@ -1,6 +1,8 @@
 package com.nevoit.pearwall.audio
 
 import android.media.audiofx.Visualizer
+import android.os.SystemClock
+import android.util.Log
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
@@ -15,6 +17,8 @@ class GlobalAudioMeter(
     private var analyzer: ClassicAudioAnalyzer? = null
 
     fun start() {
+        val start = SystemClock.uptimeMillis()
+        Log.d(TAG, "start begin thread=${Thread.currentThread().name}")
         stop()
         try {
             val currentAnalyzer = ClassicAudioAnalyzer()
@@ -61,6 +65,7 @@ class GlobalAudioMeter(
             v.enabled = true
             visualizer = v
             onStatus("Visualizer(0) 已启动，正在监听全局混音")
+            Log.d(TAG, "start success captureSize=${v.captureSize} cost=${SystemClock.uptimeMillis() - start}ms thread=${Thread.currentThread().name}")
         } catch (t: Throwable) {
             visualizer?.runCatching {
                 enabled = false
@@ -69,6 +74,7 @@ class GlobalAudioMeter(
             visualizer = null
             analyzer?.close()
             analyzer = null
+            Log.e(TAG, "start failed cost=${SystemClock.uptimeMillis() - start}ms thread=${Thread.currentThread().name}", t)
             onStatus("启动失败：${t.javaClass.simpleName}: ${t.message ?: "unknown"}")
             onLevel(0f)
             onBass(0f)
@@ -76,6 +82,9 @@ class GlobalAudioMeter(
     }
 
     fun stop() {
+        val start = SystemClock.uptimeMillis()
+        val wasRunning = visualizer != null || analyzer != null
+        if (wasRunning) Log.d(TAG, "stop begin thread=${Thread.currentThread().name}")
         visualizer?.runCatching {
             enabled = false
             release()
@@ -83,9 +92,11 @@ class GlobalAudioMeter(
         visualizer = null
         analyzer?.close()
         analyzer = null
+        if (wasRunning) Log.d(TAG, "stop end cost=${SystemClock.uptimeMillis() - start}ms thread=${Thread.currentThread().name}")
     }
 
     private companion object {
+        const val TAG = "GlobalAudioMeter"
         // 20 reports per second is enough for the visual response while avoiding
         // device-specific maximum-rate callbacks that can be unnecessarily busy.
         const val CAPTURE_RATE_MILLIHERTZ = 20_000
