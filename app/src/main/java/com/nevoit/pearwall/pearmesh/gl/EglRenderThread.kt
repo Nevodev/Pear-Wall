@@ -146,6 +146,7 @@ class EglRenderThread(
                 if (!running.get()) break
 
                 val frameStart = System.nanoTime()
+                val state = stateProvider()
                 val sessionGeneration = renderSessionGeneration.get()
                 if (resumedAfterPause || sessionGeneration != observedSessionGeneration) {
                     previousFrameStart = frameStart
@@ -153,13 +154,14 @@ class EglRenderThread(
                     renderSessionStart = frameStart
                     observedSessionGeneration = sessionGeneration
                 } else {
-                    animationNanos += (frameStart - previousFrameStart).coerceAtLeast(0L)
+                    if (state.isPlaybackPlaying || !state.pauseFlowEnabled) {
+                        animationNanos += (frameStart - previousFrameStart).coerceAtLeast(0L)
+                    }
                     previousFrameStart = frameStart
                 }
                 val packedSize = size.get()
                 val width = unpackWidth(packedSize)
                 val height = unpackHeight(packedSize)
-                val state = stateProvider()
                 if (width > 0 && height > 0) {
                     val renderStart = System.nanoTime()
                     renderer.render(

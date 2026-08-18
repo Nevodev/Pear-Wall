@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.nevoit.pearwall.PearWallRuntime
 import com.nevoit.pearwall.pearmesh.gl.EglRenderThread
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -33,6 +34,7 @@ fun PearMeshSurface(
         fun updateRenderingState() {
             val enabled = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
             renderingEnabled.set(enabled)
+            PearWallRuntime.setAudioConsumerActive(state, enabled)
             renderThread.get()?.setRenderingEnabled(enabled)
         }
 
@@ -43,6 +45,7 @@ fun PearMeshSurface(
         onDispose {
             lifecycle.removeObserver(observer)
             renderingEnabled.set(false)
+            PearWallRuntime.setAudioConsumerActive(state, false)
             renderThread.get()?.setRenderingEnabled(false)
         }
     }

@@ -12,11 +12,13 @@ class GlobalAudioMeter(
     private val onStatus: (String) -> Unit,
 ) {
     private var visualizer: Visualizer? = null
-    private val analyzer = ClassicAudioAnalyzer()
+    private var analyzer: ClassicAudioAnalyzer? = null
 
     fun start() {
         stop()
         try {
+            val currentAnalyzer = ClassicAudioAnalyzer()
+            analyzer = currentAnalyzer
             val v = Visualizer(0)
             val range = Visualizer.getCaptureSizeRange()
             v.captureSize = range[1].coerceAtMost(2048)
@@ -34,7 +36,7 @@ class GlobalAudioMeter(
                         }
                         val rms = sqrt(sum / waveform.size)
                         val sampleRateHz = samplingRate / 1000f
-                        analyzer.processWaveform(waveform, sampleRateHz, System.nanoTime())
+                        analyzer?.processWaveform(waveform, sampleRateHz, System.nanoTime())
                         val db = 20.0 * log10((rms / 128.0) + 1e-6)
                         val level = ((db + 48.0) / 48.0)
                             .toFloat()
@@ -49,10 +51,10 @@ class GlobalAudioMeter(
                     ) {
                         // Visualizer reports the rate in milliHertz.
                         val sampleRateHz = samplingRate / 1000f
-                        onBass(analyzer.processFft(fft, sampleRateHz, System.nanoTime()))
+                        onBass(analyzer?.processFft(fft, sampleRateHz, System.nanoTime()) ?: 0f)
                     }
                 },
-                Visualizer.getMaxCaptureRate(),
+                CAPTURE_RATE_MILLIHERTZ,
                 true,
                 true,
             )
@@ -60,6 +62,13 @@ class GlobalAudioMeter(
             visualizer = v
             onStatus("Visualizer(0) 已启动，正在监听全局混音")
         } catch (t: Throwable) {
+            visualizer?.runCatching {
+                enabled = false
+                release()
+            }
+            visualizer = null
+            analyzer?.close()
+            analyzer = null
             onStatus("启动失败：${t.javaClass.simpleName}: ${t.message ?: "unknown"}")
             onLevel(0f)
             onBass(0f)
@@ -72,7 +81,14 @@ class GlobalAudioMeter(
             release()
         }
         visualizer = null
-        analyzer.reset()
+        analyzer?.close()
+        analyzer = null
+    }
+
+    private companion object {
+        // 20 reports per second is enough for the visual response while avoiding
+        // device-specific maximum-rate callbacks that can be unnecessarily busy.
+        const val CAPTURE_RATE_MILLIHERTZ = 20_000
     }
 }
 

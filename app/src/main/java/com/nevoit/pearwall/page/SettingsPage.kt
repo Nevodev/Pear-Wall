@@ -124,6 +124,10 @@ fun SettingsPage() {
     var fps by remember { mutableFloatStateOf(settings.frameRate.toFloat()) }
     var randomize by remember { mutableStateOf(settings.randomizeOnScreenOn) }
     var audioVisualization by remember { mutableStateOf(settings.audioVisualizationEnabled) }
+    var pauseUsesNoArtworkBehavior by remember {
+        mutableStateOf(settings.pauseUsesNoArtworkBehavior)
+    }
+    var pauseFlowEnabled by remember { mutableStateOf(settings.pauseFlowEnabled) }
     var portrait by remember { mutableIntStateOf(settings.portraitPreset) }
     var landscape by remember { mutableIntStateOf(settings.landscapePreset) }
     var scrimSelection by remember { mutableIntStateOf(if (settings.scrimAlpha < 0.4f) 0 else 1) }
@@ -322,7 +326,35 @@ fun SettingsPage() {
                     VGap()
                 }
                 item {
-                    SettingsCard("可视化") {
+                    SettingsCard("暂停时") {
+                        if (behavior == PearWallSettings.CUSTOM_IMAGE) {
+                            ToggleRow(
+                                "使用自选图片",
+                                "开启后，播放暂停时显示“未获取到封面时”设置的自选图片",
+                                iconRes = R.drawable.ic_photo,
+                                checked = pauseUsesNoArtworkBehavior,
+                            ) { enabled ->
+                                pauseUsesNoArtworkBehavior = enabled
+                                PearWallRuntime.setPauseUsesNoArtworkBehavior(context, enabled)
+                            }
+                            SwitchDivider()
+                        }
+                        ToggleRow(
+                            "暂停流动效果",
+                            "暂停播放后冻结壁纸动画，恢复播放时继续",
+                            iconRes = R.drawable.ic_play,
+                            checked = pauseFlowEnabled,
+                        ) { enabled ->
+                            pauseFlowEnabled = enabled
+                            settings.pauseFlowEnabled = enabled
+                            state.setPauseFlowEnabled(enabled)
+                        }
+                    }
+                    VGap()
+                    VGap()
+                }
+                item {
+                    SettingsCard("画面效果") {
                         ToggleRow(
                             "开启音频可视化",
                             "可能会显著增加电量消耗",
@@ -339,20 +371,6 @@ fun SettingsPage() {
                             }
                         }
                         SwitchDivider()
-                        EffectOptionRow(
-                            "分析引擎",
-                            R.drawable.ic_engine,
-                            listOf("AMI", "RE", "FE"),
-                            blurSelection
-                        ) {
-
-                        }
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard("画面效果") {
                         EffectOptionRow(
                             "压暗",
                             R.drawable.ic_scrim,
@@ -1130,7 +1148,7 @@ private fun ToggleRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp)
+                .padding(horizontal = 12.dp)
                 .padding(vertical = if (subtitle != null) 12.dp else 0.dp)
                 .graphicsLayer {
                     blendMode = BlendMode.Plus

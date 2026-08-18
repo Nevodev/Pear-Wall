@@ -10,3 +10,7 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# Rust JNI exports use the class name in their symbol names. Keep the wrapper
+# and its private native declarations unchanged for release builds.
+-keep class com.nevoit.pearwall.audio.ClassicAudioAnalyzer { *; }

@@ -116,6 +116,7 @@ class PearWallpaperService : WallpaperService() {
             runCatching { applicationContext.unregisterReceiver(deviceStateReceiver) }
             renderer?.stopAndJoin()
             state.setArtworkChangedListener(null)
+            PearWallRuntime.setAudioConsumerActive(state, false)
             PearWallRuntime.release(state)
             super.onDestroy()
         }
@@ -142,6 +143,7 @@ class PearWallpaperService : WallpaperService() {
         private fun updateRenderingEnabled(enabled: Boolean) {
             if (renderingEnabled == enabled) return
             renderingEnabled = enabled
+            PearWallRuntime.setAudioConsumerActive(state, enabled)
             renderer?.setRenderingEnabled(enabled)
             mainHandler.removeCallbacks(activeStateProbe)
             if (enabled) mainHandler.postDelayed(activeStateProbe, ACTIVE_PROBE_INTERVAL_MS)

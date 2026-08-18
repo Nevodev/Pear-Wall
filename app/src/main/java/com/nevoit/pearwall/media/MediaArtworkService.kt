@@ -55,6 +55,7 @@ class MediaArtworkService : NotificationListenerService() {
         unregisterControllerCallbacks()
         controllers = emptyList()
         mediaSessionManager = null
+        PearWallRuntime.setPlaybackPlaying(applicationContext, false)
         super.onListenerDisconnected()
     }
 
@@ -86,16 +87,19 @@ class MediaArtworkService : NotificationListenerService() {
         controllers.forEach { controller ->
             val callback = object : MediaController.Callback() {
                 override fun onMetadataChanged(metadata: MediaMetadata?) {
+                    syncPlaybackState()
                     publishCurrentController()
                 }
 
                 override fun onPlaybackStateChanged(state: PlaybackState?) {
+                    syncPlaybackState()
                     publishCurrentController()
                 }
             }
             controllerCallbacks[controller] = callback
             controller.registerCallback(callback)
         }
+        syncPlaybackState()
         publishCurrentController()
     }
 
@@ -107,12 +111,23 @@ class MediaArtworkService : NotificationListenerService() {
     }
 
     private fun currentController(): MediaController? = controllers.firstOrNull {
-        it.playbackState?.state == PlaybackState.STATE_PLAYING
+        isActivePlaybackState(it.playbackState?.state)
     } ?: controllers.firstOrNull { it.metadata != null }
 
-    private fun publishCurrentController() {
-        currentController()?.metadata?.let(::publishMetadata)
+    private fun syncPlaybackState() {
+        val controller = currentController()
+        val playing = isActivePlaybackState(controller?.playbackState?.state)
+        PearWallRuntime.setPlaybackPlaying(applicationContext, playing)
     }
+
+    private fun publishCurrentController() {
+        val controller = currentController() ?: return
+        if (!isActivePlaybackState(controller.playbackState?.state)) return
+        controller.metadata?.let(::publishMetadata)
+    }
+
+    private fun isActivePlaybackState(state: Int?): Boolean =
+        state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING
 
     private fun publishMetadata(metadata: MediaMetadata?) {
         val bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)

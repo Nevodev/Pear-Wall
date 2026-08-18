@@ -1,7 +1,7 @@
+use biquad::{Biquad, Coefficients, DirectForm1, Hertz, Type, Q_BUTTERWORTH_F32};
 use jni::objects::{JByteArray, JClass};
 use jni::sys::{jfloat, jlong};
 use jni::JNIEnv;
-use biquad::{Biquad, Coefficients, DirectForm1, Hertz, Type, Q_BUTTERWORTH_F32};
 
 const SILENCE_DB: f32 = -72.0;
 const DEFAULT_REPORT_INTERVAL_SECONDS: f32 = 0.05;
@@ -11,13 +11,21 @@ const MAX_REPORT_INTERVAL_SECONDS: f32 = 0.25;
 type LowPass = DirectForm1<f32>;
 
 fn low_pass(cutoff_hz: f32, sample_rate_hz: f32) -> LowPass {
+    // Visualizer should report a normal audio rate, but keep malformed JNI input
+    // from reaching biquad's fallible coefficient construction.
+    let safe_sample_rate = if sample_rate_hz.is_finite() {
+        sample_rate_hz.clamp(2_000.0, 192_000.0)
+    } else {
+        48_000.0
+    };
+    let safe_cutoff = cutoff_hz.min(safe_sample_rate * 0.45).max(1.0);
     let coefficients = Coefficients::<f32>::from_params(
         Type::LowPass,
-        Hertz::from_hz(sample_rate_hz).expect("valid sample rate"),
-        Hertz::from_hz(cutoff_hz).expect("valid cutoff"),
+        Hertz::from_hz(safe_sample_rate).expect("clamped sample rate is valid"),
+        Hertz::from_hz(safe_cutoff).expect("clamped cutoff is valid"),
         Q_BUTTERWORTH_F32,
     )
-    .expect("valid low-pass coefficients");
+    .expect("clamped low-pass coefficients are valid");
     DirectForm1::new(coefficients)
 }
 
@@ -63,7 +71,13 @@ impl TransientDetector {
             let bass_top = self.bass_top.run(sample);
             let bass = bass_top - low;
             let reference = self.reference_top.run(sample) - bass_top;
-            self.bass_power = envelope(self.bass_power, (bass * bass) as f64, 0.006, 0.045, sample_rate);
+            self.bass_power = envelope(
+                self.bass_power,
+                (bass * bass) as f64,
+                0.006,
+                0.045,
+                sample_rate,
+            );
             self.reference_power = envelope(
                 self.reference_power,
                 (reference * reference) as f64,
@@ -81,7 +95,6 @@ impl TransientDetector {
         }
         strongest * 0.82
     }
-
 }
 
 struct Analyzer {
@@ -128,7 +141,10 @@ impl Default for Analyzer {
 
 impl Analyzer {
     fn process_waveform(&mut self, waveform: &[i8], sample_rate: f32, timestamp_ns: jlong) {
-        if waveform.is_empty() || sample_rate <= 0.0 {
+        if waveform.is_empty()
+            || !sample_rate.is_finite()
+            || !(2_000.0..=192_000.0).contains(&sample_rate)
+        {
             return;
         }
         let elapsed = elapsed_seconds(self.previous_waveform_ns, timestamp_ns);
@@ -140,7 +156,10 @@ impl Analyzer {
     }
 
     fn process_fft(&mut self, fft: &[i8], sample_rate: f32, timestamp_ns: jlong) -> f32 {
-        if fft.len() < 8 || sample_rate <= 0.0 {
+        if fft.len() < 8
+            || !sample_rate.is_finite()
+            || !(2_000.0..=192_000.0).contains(&sample_rate)
+        {
             return 0.0;
         }
         let elapsed = elapsed_seconds(self.previous_fft_ns, timestamp_ns);
@@ -169,7 +188,11 @@ impl Analyzer {
         let rise = (bass_db - self.bass_baseline_db).max(0.0);
         let reference_rise = (reference_db - self.reference_baseline_db).max(0.0);
         let dominance = smooth_range(bass_db - reference_db, 0.0, 8.0);
-        let sharp_target = if bass_db >= -45.0 { smooth_range(frame_rise, 7.0, 14.0) } else { 0.0 };
+        let sharp_target = if bass_db >= -45.0 {
+            smooth_range(frame_rise, 7.0, 14.0)
+        } else {
+            0.0
+        };
         self.sharp_attack = sharp_target.max(self.sharp_attack * decay(elapsed, 0.09));
 
         let harmonic_confidence = smooth_range(dominance, 0.12, 0.3) * self.sharp_attack * 0.9;
@@ -178,7 +201,8 @@ impl Analyzer {
         let bass_only_rise = rise - reference_rise * rejection;
 
         self.bass_baseline_db = follow_baseline(self.bass_baseline_db, bass_db, 1.1, 0.16, elapsed);
-        self.reference_baseline_db = follow_baseline(self.reference_baseline_db, reference_db, 1.1, 0.16, elapsed);
+        self.reference_baseline_db =
+            follow_baseline(self.reference_baseline_db, reference_db, 1.1, 0.16, elapsed);
 
         let level = smooth_range(bass_db, -50.0, -18.0);
         let transient = smooth_range(bass_only_rise, 1.2, 7.0);
@@ -194,7 +218,9 @@ impl Analyzer {
             .sum();
         self.target = weighted.max(self.target * decay(elapsed, 1.0));
         self.power += (self.target - self.power) * (1.0 - decay(elapsed, 0.07));
-        self.power.max(self.transient_response * level).clamp(0.0, 1.0)
+        self.power
+            .max(self.transient_response * level)
+            .clamp(0.0, 1.0)
     }
 
     fn confirm_response(&mut self, value: f32, immediate: bool) -> f32 {
@@ -238,10 +264,13 @@ fn follow_baseline(current: f32, target: f32, attack: f32, release: f32, elapsed
 }
 
 fn elapsed_seconds(previous: jlong, current: jlong) -> f32 {
-    if previous <= 0 || current <= previous {
+    let Some(delta) = current.checked_sub(previous) else {
+        return DEFAULT_REPORT_INTERVAL_SECONDS;
+    };
+    if previous <= 0 || delta <= 0 {
         return DEFAULT_REPORT_INTERVAL_SECONDS;
     }
-    ((current - previous) as f32 / 1_000_000_000.0).clamp(MIN_REPORT_INTERVAL_SECONDS, MAX_REPORT_INTERVAL_SECONDS)
+    (delta as f32 / 1_000_000_000.0).clamp(MIN_REPORT_INTERVAL_SECONDS, MAX_REPORT_INTERVAL_SECONDS)
 }
 
 fn decay(elapsed: f32, time_constant: f32) -> f32 {
@@ -288,8 +317,12 @@ pub extern "system" fn Java_com_nevoit_pearwall_audio_ClassicAudioAnalyzer_nativ
     sample_rate_hz: jfloat,
     timestamp_ns: jlong,
 ) {
-    let Some(analyzer) = analyzer_from_ptr(handle) else { return };
-    let Ok(bytes) = env.convert_byte_array(waveform) else { return };
+    let Some(analyzer) = analyzer_from_ptr(handle) else {
+        return;
+    };
+    let Ok(bytes) = env.convert_byte_array(waveform) else {
+        return;
+    };
     let samples: Vec<i8> = bytes.into_iter().map(|value| value as i8).collect();
     analyzer.process_waveform(&samples, sample_rate_hz, timestamp_ns);
 }
@@ -303,8 +336,12 @@ pub extern "system" fn Java_com_nevoit_pearwall_audio_ClassicAudioAnalyzer_nativ
     sample_rate_hz: jfloat,
     timestamp_ns: jlong,
 ) -> jfloat {
-    let Some(analyzer) = analyzer_from_ptr(handle) else { return 0.0 };
-    let Ok(bytes) = env.convert_byte_array(fft) else { return 0.0 };
+    let Some(analyzer) = analyzer_from_ptr(handle) else {
+        return 0.0;
+    };
+    let Ok(bytes) = env.convert_byte_array(fft) else {
+        return 0.0;
+    };
     let samples: Vec<i8> = bytes.into_iter().map(|value| value as i8).collect();
     analyzer.process_fft(&samples, sample_rate_hz, timestamp_ns)
 }
@@ -327,7 +364,9 @@ pub extern "system" fn Java_com_nevoit_pearwall_audio_ClassicAudioAnalyzer_nativ
     handle: jlong,
 ) {
     if handle != 0 {
-        unsafe { drop(Box::from_raw(handle as *mut Analyzer)); }
+        unsafe {
+            drop(Box::from_raw(handle as *mut Analyzer));
+        }
     }
 }
 

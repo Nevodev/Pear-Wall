@@ -23,6 +23,7 @@ class PearMeshState(
     blurMultiplier: Float = DefaultBlurMultiplier,
     flowSpeed: Int = StandardFlowSpeed,
     audioVisualizationEnabled: Boolean = false,
+    pauseFlowEnabled: Boolean = true,
 ) {
     private val artworkId = AtomicLong(0L)
     private val artwork = AtomicReference<ArtworkFrame?>(null)
@@ -48,6 +49,8 @@ class PearMeshState(
     private val blurMultiplierTarget = AtomicReference(blurMultiplier.coerceAtLeast(0f))
     private val flowSpeedTarget = AtomicInteger(flowSpeed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
     private val audioVisualization = AtomicReference(audioVisualizationEnabled)
+    private val pauseFlow = AtomicReference(pauseFlowEnabled)
+    private val playbackPlaying = AtomicReference(true)
     @Volatile
     private var artworkChangedListener: (() -> Unit)? = null
 
@@ -122,6 +125,14 @@ class PearMeshState(
         if (!enabled) setAudioPower(FloatArray(4))
     }
 
+    fun setPauseFlowEnabled(enabled: Boolean) {
+        pauseFlow.set(enabled)
+    }
+
+    fun setPlaybackPlaying(playing: Boolean) {
+        playbackPlaying.set(playing)
+    }
+
     /** The state retains this bitmap so a recreated Android surface can upload it again. */
     fun setRenderDebugInfo(info: RenderDebugInfo) {
         debugInfo.set(info)
@@ -169,6 +180,8 @@ class PearMeshState(
         blurMultiplier = blurMultiplierTarget.get(),
         flowSpeed = flowSpeedTarget.get(),
         audioVisualizationEnabled = audioVisualization.get(),
+        pauseFlowEnabled = pauseFlow.get(),
+        isPlaybackPlaying = playbackPlaying.get(),
     )
 
     companion object {
@@ -211,4 +224,6 @@ data class RendererState(
     val blurMultiplier: Float,
     val flowSpeed: Int,
     val audioVisualizationEnabled: Boolean,
+    val pauseFlowEnabled: Boolean,
+    val isPlaybackPlaying: Boolean,
 )

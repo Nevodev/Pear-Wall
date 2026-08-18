@@ -4,19 +4,23 @@ package com.nevoit.pearwall.audio
 internal class ClassicAudioAnalyzer : AutoCloseable {
     private var handle = nativeCreate()
 
+    @Synchronized
     fun processWaveform(waveform: ByteArray, sampleRateHz: Float, timestampNanos: Long) {
         if (handle != 0L) {
             nativeProcessWaveform(handle, waveform, sampleRateHz, timestampNanos)
         }
     }
 
+    @Synchronized
     fun processFft(fft: ByteArray, sampleRateHz: Float, timestampNanos: Long): Float =
         if (handle == 0L) 0f else nativeProcessFft(handle, fft, sampleRateHz, timestampNanos)
 
+    @Synchronized
     fun reset() {
         if (handle != 0L) nativeReset(handle)
     }
 
+    @Synchronized
     override fun close() {
         if (handle != 0L) {
             nativeDestroy(handle)
