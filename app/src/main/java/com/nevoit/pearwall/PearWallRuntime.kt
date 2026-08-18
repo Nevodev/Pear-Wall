@@ -21,6 +21,7 @@ object PearWallRuntime {
             targetFrameRate = settings.frameRate,
             scrimAlpha = settings.scrimAlpha,
             blurMultiplier = settings.blurMultiplier,
+            flowSpeed = settings.flowSpeed,
         ).also { state ->
             states += state
             initialArtwork(context, settings)?.let(state::setArtwork)
@@ -61,6 +62,7 @@ object PearWallRuntime {
             it.setTargetFrameRate(settings.frameRate)
             it.setScrimAlpha(settings.scrimAlpha)
             it.setBlurMultiplier(settings.blurMultiplier)
+            it.setFlowSpeed(settings.flowSpeed)
             it.setPortraitPreset(settings.portraitPreset)
             it.setLandscapePreset(settings.landscapePreset)
         }

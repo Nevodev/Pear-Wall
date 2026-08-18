@@ -133,6 +133,9 @@ fun SettingsPage() {
             },
         )
     }
+    var flowSpeedSelection by remember {
+        mutableIntStateOf(settings.flowSpeed.coerceIn(0, 1))
+    }
     var hasNotificationAccess by remember {
         mutableStateOf(hasNotificationListenerAccess(context))
     }
@@ -312,6 +315,18 @@ fun SettingsPage() {
                             val multiplier = listOf(0.75f, 1f, 1.4f)[it]
                             settings.blurMultiplier = multiplier
                             state.setBlurMultiplier(multiplier)
+                            PearWallRuntime.applySettings(context)
+                        }
+                        TwoSideDivider()
+                        EffectOptionRow(
+                            "流动速度",
+                            R.drawable.ic_speed,
+                            listOf("标准", "快速"),
+                            flowSpeedSelection
+                        ) {
+                            flowSpeedSelection = it
+                            settings.flowSpeed = it
+                            state.setFlowSpeed(it)
                             PearWallRuntime.applySettings(context)
                         }
                     }

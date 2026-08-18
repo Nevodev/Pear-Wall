@@ -30,6 +30,9 @@ class PearWallSettings(context: Context) {
     var blurMultiplier: Float
         get() = prefs.getFloat("blur_multiplier", DEFAULT_BLUR_MULTIPLIER)
         set(value) = prefs.edit { putFloat("blur_multiplier", value) }
+    var flowSpeed: Int
+        get() = prefs.getInt("flow_speed", STANDARD_FLOW_SPEED)
+        set(value) = prefs.edit { putInt("flow_speed", value) }
     var customArtworkUri: String?
         get() = prefs.getString("custom_artwork_uri", null)
         set(value) = prefs.edit { putString("custom_artwork_uri", value) }
@@ -40,5 +43,7 @@ class PearWallSettings(context: Context) {
         const val KEEP_LAST = 1
         const val DEFAULT_SCRIM_ALPHA = 0.4f
         const val DEFAULT_BLUR_MULTIPLIER = 1f
+        const val STANDARD_FLOW_SPEED = 0
+        const val FAST_FLOW_SPEED = 1
     }
 }

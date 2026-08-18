@@ -21,6 +21,7 @@ class PearMeshState(
     targetFrameRate: Int = DefaultTargetFrameRate,
     scrimAlpha: Float = DefaultScrimAlpha,
     blurMultiplier: Float = DefaultBlurMultiplier,
+    flowSpeed: Int = StandardFlowSpeed,
 ) {
     private val artworkId = AtomicLong(0L)
     private val artwork = AtomicReference<ArtworkFrame?>(null)
@@ -44,6 +45,7 @@ class PearMeshState(
     )
     private val scrimAlphaTarget = AtomicReference(scrimAlpha.coerceIn(0f, 1f))
     private val blurMultiplierTarget = AtomicReference(blurMultiplier.coerceAtLeast(0f))
+    private val flowSpeedTarget = AtomicInteger(flowSpeed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
     @Volatile
     private var artworkChangedListener: (() -> Unit)? = null
 
@@ -109,6 +111,10 @@ class PearMeshState(
         blurMultiplierTarget.set(multiplier.coerceAtLeast(0f))
     }
 
+    fun setFlowSpeed(speed: Int) {
+        flowSpeedTarget.set(speed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
+    }
+
     /** The state retains this bitmap so a recreated Android surface can upload it again. */
     fun setRenderDebugInfo(info: RenderDebugInfo) {
         debugInfo.set(info)
@@ -146,6 +152,7 @@ class PearMeshState(
         targetFrameRate = targetFrameRateTarget.get(),
         scrimAlpha = scrimAlphaTarget.get(),
         blurMultiplier = blurMultiplierTarget.get(),
+        flowSpeed = flowSpeedTarget.get(),
     )
 
     companion object {
@@ -161,6 +168,8 @@ class PearMeshState(
         const val MaxTargetFrameRate = 240
         const val DefaultScrimAlpha = 0.4f
         const val DefaultBlurMultiplier = 1f
+        const val StandardFlowSpeed = 0
+        const val FastFlowSpeed = 1
     }
 }
 
@@ -177,4 +186,5 @@ data class RendererState(
     val targetFrameRate: Int,
     val scrimAlpha: Float,
     val blurMultiplier: Float,
+    val flowSpeed: Int,
 )

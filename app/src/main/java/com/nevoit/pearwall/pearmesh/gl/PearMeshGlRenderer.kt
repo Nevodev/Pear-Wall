@@ -94,6 +94,7 @@ internal class PearMeshGlRenderer(
         val transitionMix = artworkTransitionMix(time)
         val currentLyricsMix = state.behindLyricsProgress
         val imageScales = imageScales(state, time)
+        val flowSpeedMultiplier = if (state.flowSpeed == PearMeshState.FastFlowSpeed) 2.0 else 1.0
         val blurSigma = lerp(
             ORDINARY_BLUR_SIGMA,
             LYRICS_BLUR_SIGMA,
@@ -108,8 +109,8 @@ internal class PearMeshGlRenderer(
         val lyricTexture: Int
         val ordinaryTexture: Int
         if (needsOrdinary && needsLyrics) {
-            renderBackdrop(floatArrayOf(1f, 1f, 1f), blurSigma, ordinaryTarget, time, transitionMix)
-            renderBackdrop(imageScales, blurSigma, lyricTarget, time, transitionMix)
+            renderBackdrop(floatArrayOf(1f, 1f, 1f), blurSigma, ordinaryTarget, time, transitionMix, flowSpeedMultiplier)
+            renderBackdrop(imageScales, blurSigma, lyricTarget, time, transitionMix, flowSpeedMultiplier)
             ordinaryTexture = ordinaryTarget.texture
             lyricTexture = lyricTarget.texture
         } else {
@@ -119,6 +120,7 @@ internal class PearMeshGlRenderer(
                 lyricTarget,
                 time,
                 transitionMix,
+                flowSpeedMultiplier,
             )
             lyricTexture = lyricTarget.texture
             ordinaryTexture = lyricTarget.texture
@@ -133,6 +135,7 @@ internal class PearMeshGlRenderer(
         target: RenderTarget,
         time: Double,
         transitionMix: Float,
+        flowSpeedMultiplier: Double,
     ) {
         val rotation = checkNotNull(rotationTarget)
         val half = checkNotNull(kawaseHalfTarget)
@@ -142,7 +145,7 @@ internal class PearMeshGlRenderer(
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
 
         rotationProgram.use()
-        rotationProgram.float("uTime", time.toFloat())
+        rotationProgram.float("uTime", (time * flowSpeedMultiplier).toFloat())
         val aspect = outputWidth.toFloat() / outputHeight
         if (aspect >= 1f) {
             rotationProgram.vec2("uViewScale", 1f, aspect)
