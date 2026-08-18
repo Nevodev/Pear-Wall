@@ -111,7 +111,9 @@ val nativeOutputDirectory = layout.buildDirectory.dir("generated/rust-jniLibs")
 val buildClassicNative = tasks.register<Exec>("buildClassicNative") {
     val ndkDirectory = sdkDirectory.resolve("ndk/$classicNdkVersion")
     workingDir(rootProject.file("classic"))
-    inputs.dir(rootProject.file("classic"))
+    inputs.file(rootProject.file("classic/Cargo.toml"))
+    inputs.file(rootProject.file("classic/Cargo.lock"))
+    inputs.dir(rootProject.file("classic/src"))
     outputs.dir(nativeOutputDirectory)
     environment("ANDROID_NDK_HOME", ndkDirectory.absolutePath)
     commandLine(
