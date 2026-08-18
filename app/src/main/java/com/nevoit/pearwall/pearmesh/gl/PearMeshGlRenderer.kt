@@ -85,7 +85,10 @@ internal class PearMeshGlRenderer(
         GLES30.glClearColor(0f, 0f, 0f, 1f)
     }
 
+    private var currentScrimAlpha = PearMeshState.DefaultScrimAlpha
+
     fun render(width: Int, height: Int, state: RendererState, time: Double) {
+        currentScrimAlpha = state.scrimAlpha
         ensureSize(width, height, state)
         updateArtwork(state, time)
         val transitionMix = artworkTransitionMix(time)
@@ -95,7 +98,7 @@ internal class PearMeshGlRenderer(
             ORDINARY_BLUR_SIGMA,
             LYRICS_BLUR_SIGMA,
             currentLyricsMix,
-        ) * state.renderScale
+        ) * state.renderScale * state.blurMultiplier
 
         val needsOrdinary = currentLyricsMix < 1f
         val needsLyrics = currentLyricsMix > 0f
@@ -264,7 +267,7 @@ internal class PearMeshGlRenderer(
         program.use()
         program.int("uLyricsBackdrop", 0)
         program.int("uOrdinaryBackdrop", 1)
-        program.float("uBlackScrimAlpha", 0.4f)
+        program.float("uBlackScrimAlpha", currentScrimAlpha)
         program.float("uLyricsModeMix", modeMix)
         program.float("uDitherStrength", 1f)
         program.int("uMaterialMode", mode)
@@ -452,7 +455,6 @@ internal class PearMeshGlRenderer(
         const val MATERIAL_LYRICS = 1
         const val MATERIAL_COMPOSITE = 2
         const val MATERIAL_LANDSCAPE_BACKGROUND = 3
-
         fun lerp(from: Float, to: Float, amount: Float): Float =
             from + (to - from) * amount
 

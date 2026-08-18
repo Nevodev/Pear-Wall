@@ -19,6 +19,8 @@ object PearWallRuntime {
             landscapePresetIndex = settings.landscapePreset,
             renderScale = settings.renderScale,
             targetFrameRate = settings.frameRate,
+            scrimAlpha = settings.scrimAlpha,
+            blurMultiplier = settings.blurMultiplier,
         ).also { state ->
             states += state
             initialArtwork(context, settings)?.let(state::setArtwork)
@@ -57,6 +59,8 @@ object PearWallRuntime {
         states.forEach {
             it.setRenderScale(settings.renderScale)
             it.setTargetFrameRate(settings.frameRate)
+            it.setScrimAlpha(settings.scrimAlpha)
+            it.setBlurMultiplier(settings.blurMultiplier)
             it.setPortraitPreset(settings.portraitPreset)
             it.setLandscapePreset(settings.landscapePreset)
         }

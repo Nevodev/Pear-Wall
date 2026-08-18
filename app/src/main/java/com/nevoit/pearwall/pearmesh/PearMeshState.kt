@@ -19,6 +19,8 @@ class PearMeshState(
     landscapePresetIndex: Int = DefaultLandscapePresetIndex,
     renderScale: Float = DefaultRenderScale,
     targetFrameRate: Int = DefaultTargetFrameRate,
+    scrimAlpha: Float = DefaultScrimAlpha,
+    blurMultiplier: Float = DefaultBlurMultiplier,
 ) {
     private val artworkId = AtomicLong(0L)
     private val artwork = AtomicReference<ArtworkFrame?>(null)
@@ -40,6 +42,8 @@ class PearMeshState(
     private val targetFrameRateTarget = AtomicInteger(
         targetFrameRate.coerceIn(MinTargetFrameRate, MaxTargetFrameRate),
     )
+    private val scrimAlphaTarget = AtomicReference(scrimAlpha.coerceIn(0f, 1f))
+    private val blurMultiplierTarget = AtomicReference(blurMultiplier.coerceAtLeast(0f))
     @Volatile
     private var artworkChangedListener: (() -> Unit)? = null
 
@@ -97,6 +101,14 @@ class PearMeshState(
         targetFrameRateTarget.set(clampedFrameRate)
     }
 
+    fun setScrimAlpha(alpha: Float) {
+        scrimAlphaTarget.set(alpha.coerceIn(0f, 1f))
+    }
+
+    fun setBlurMultiplier(multiplier: Float) {
+        blurMultiplierTarget.set(multiplier.coerceAtLeast(0f))
+    }
+
     /** The state retains this bitmap so a recreated Android surface can upload it again. */
     fun setRenderDebugInfo(info: RenderDebugInfo) {
         debugInfo.set(info)
@@ -132,6 +144,8 @@ class PearMeshState(
         landscapePresetIndex = landscapePreset.get(),
         renderScale = renderScaleTarget.get(),
         targetFrameRate = targetFrameRateTarget.get(),
+        scrimAlpha = scrimAlphaTarget.get(),
+        blurMultiplier = blurMultiplierTarget.get(),
     )
 
     companion object {
@@ -145,6 +159,8 @@ class PearMeshState(
         const val DefaultTargetFrameRate = 30
         const val MinTargetFrameRate = 1
         const val MaxTargetFrameRate = 240
+        const val DefaultScrimAlpha = 0.4f
+        const val DefaultBlurMultiplier = 1f
     }
 }
 
@@ -159,4 +175,6 @@ data class RendererState(
     val landscapePresetIndex: Int,
     val renderScale: Float,
     val targetFrameRate: Int,
+    val scrimAlpha: Float,
+    val blurMultiplier: Float,
 )

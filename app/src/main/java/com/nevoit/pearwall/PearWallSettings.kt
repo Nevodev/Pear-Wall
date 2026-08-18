@@ -24,6 +24,12 @@ class PearWallSettings(context: Context) {
     var landscapePreset: Int
         get() = prefs.getInt("landscape_preset", 4)
         set(value) = prefs.edit { putInt("landscape_preset", value) }
+    var scrimAlpha: Float
+        get() = prefs.getFloat("scrim_alpha", DEFAULT_SCRIM_ALPHA)
+        set(value) = prefs.edit { putFloat("scrim_alpha", value) }
+    var blurMultiplier: Float
+        get() = prefs.getFloat("blur_multiplier", DEFAULT_BLUR_MULTIPLIER)
+        set(value) = prefs.edit { putFloat("blur_multiplier", value) }
     var customArtworkUri: String?
         get() = prefs.getString("custom_artwork_uri", null)
         set(value) = prefs.edit { putString("custom_artwork_uri", value) }
@@ -32,5 +38,7 @@ class PearWallSettings(context: Context) {
         const val FILE = "pear_wall_settings"
         const val CUSTOM_IMAGE = 0
         const val KEEP_LAST = 1
+        const val DEFAULT_SCRIM_ALPHA = 0.4f
+        const val DEFAULT_BLUR_MULTIPLIER = 1f
     }
 }

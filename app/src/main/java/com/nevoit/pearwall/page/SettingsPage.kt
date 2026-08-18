@@ -123,6 +123,16 @@ fun SettingsPage() {
     var randomize by remember { mutableStateOf(settings.randomizeOnScreenOn) }
     var portrait by remember { mutableIntStateOf(settings.portraitPreset) }
     var landscape by remember { mutableIntStateOf(settings.landscapePreset) }
+    var scrimSelection by remember { mutableIntStateOf(if (settings.scrimAlpha < 0.4f) 0 else 1) }
+    var blurSelection by remember {
+        mutableIntStateOf(
+            when {
+                settings.blurMultiplier < 1f -> 0
+                settings.blurMultiplier > 1f -> 2
+                else -> 1
+            },
+        )
+    }
     var hasNotificationAccess by remember {
         mutableStateOf(hasNotificationListenerAccess(context))
     }
@@ -157,7 +167,7 @@ fun SettingsPage() {
     val containerDpSize = LocalWindowInfo.current.containerDpSize
     val isLandscape = containerSize.width > containerSize.height
     val lyricsScrollDistancePx = containerSize.height.toFloat() / 2f
-    val resolvedHeaderPadding = if (isLandscape) 0.dp else containerDpSize.height / 3
+    val resolvedHeaderPadding = containerDpSize.height / 3
     val leadingSpacerHeightPx = with(LocalDensity.current) { resolvedHeaderPadding.toPx() }
 
     LaunchedEffect(listState, lyricsScrollDistancePx, leadingSpacerHeightPx) {
@@ -179,7 +189,7 @@ fun SettingsPage() {
         val safeStart = safeDrawingPadding.calculateStartPadding(layoutDirection)
         val safeEnd = safeDrawingPadding.calculateEndPadding(layoutDirection)
         val landscapePadding =
-            (containerDpSize.width - safeStart - safeEnd - containerDpSize.height * 1.25f) / 2
+            (containerDpSize.width - safeStart - safeEnd - containerDpSize.height * 1.2f) / 2
         PaddingValues(
             start = safeStart + landscapePadding,
             top = safeDrawingPadding.calculateTopPadding(),
@@ -258,7 +268,7 @@ fun SettingsPage() {
                             behavior = PearWallSettings.KEEP_LAST
                             settings.noArtworkBehavior = behavior
                         }
-                        ChoiceDivider()
+                        NormalDivider()
                         Choice(
                             text = "使用自选图片",
                             iconRes = R.drawable.ic_photo,
@@ -268,7 +278,7 @@ fun SettingsPage() {
                             settings.noArtworkBehavior = behavior
                         }
                         if (behavior == PearWallSettings.CUSTOM_IMAGE) {
-                            ChoiceDivider()
+                            NormalDivider()
                             ImagePickerRow {
                                 imagePicker.launch(arrayOf("image/*"))
                             }
@@ -278,32 +288,32 @@ fun SettingsPage() {
                     VGap()
                 }
                 item {
-                    SettingsCard("渲染") {
-                        RenderSliderRow(
-                            label = "渲染倍率",
-                            valueLabel = "${(scale * 100).roundToInt()}%",
-                            value = scale,
-                            valueRange = .1f..1f,
-                            onValueChange = {
-                                scale = it
-                                state.setRenderScale(it)
-                            },
-                            onValueChangeFinished = { settings.renderScale = scale },
-                        )
-                        RenderControlDivider()
-                        RenderSliderRow(
-                            label = "帧数",
-                            valueLabel = "${fps.roundToInt()} FPS",
-                            value = fps,
-                            valueRange = 10f..60f,
-                            steps = 4,
-                            onValueChange = {
-                                fps = it
-                                state.setTargetFrameRate(it.roundToInt())
-                            },
-                            onValueChangeFinished = { settings.frameRate = fps.roundToInt() },
-                            extraBottomPadding = 12.dp
-                        )
+                    SettingsCard("画面效果") {
+                        EffectOptionRow(
+                            "压暗",
+                            R.drawable.ic_scrim,
+                            listOf("轻微", "标准"),
+                            scrimSelection
+                        ) {
+                            scrimSelection = it
+                            val alpha = listOf(0.25f, 0.4f)[it]
+                            settings.scrimAlpha = alpha
+                            state.setScrimAlpha(alpha)
+                            PearWallRuntime.applySettings(context)
+                        }
+                        TwoSideDivider()
+                        EffectOptionRow(
+                            "模糊半径",
+                            R.drawable.ic_blur,
+                            listOf("小", "标准", "大"),
+                            blurSelection
+                        ) {
+                            blurSelection = it
+                            val multiplier = listOf(0.75f, 1f, 1.4f)[it]
+                            settings.blurMultiplier = multiplier
+                            state.setBlurMultiplier(multiplier)
+                            PearWallRuntime.applySettings(context)
+                        }
                     }
                     VGap()
                     VGap()
@@ -316,15 +326,50 @@ fun SettingsPage() {
                         SwitchDivider()
                         PresetSectionHeader("竖屏方案", R.drawable.ic_phone_vertical)
                         PresetSegmentedControl(PearMeshState.PortraitPresetCount, portrait) {
-                            portrait = it; settings.portraitPreset = it; state.setPortraitPreset(it)
+                            portrait = it
+                            settings.portraitPreset = it
+                            state.setPortraitPreset(it)
+                            PearWallRuntime.applySettings(context)
                         }
-                        RenderControlDivider()
+                        TwoSideDivider()
                         PresetSectionHeader("横屏方案", R.drawable.ic_phone_horizontal)
                         PresetSegmentedControl(PearMeshState.LandscapePresetCount, landscape) {
-                            landscape = it; settings.landscapePreset = it; state.setLandscapePreset(
-                            it
-                        )
+                            landscape = it
+                            settings.landscapePreset = it
+                            state.setLandscapePreset(it)
+                            PearWallRuntime.applySettings(context)
                         }
+                    }
+                    VGap()
+                    VGap()
+                }
+                item {
+                    SettingsCard("渲染") {
+                        SliderRow(
+                            label = "渲染倍率",
+                            valueLabel = "${(scale * 100).roundToInt()}%",
+                            value = scale,
+                            valueRange = .1f..1f,
+                            onValueChange = {
+                                scale = it
+                                state.setRenderScale(it)
+                            },
+                            onValueChangeFinished = { settings.renderScale = scale },
+                        )
+                        TwoSideDivider()
+                        SliderRow(
+                            label = "帧数",
+                            valueLabel = "${fps.roundToInt()} FPS",
+                            value = fps,
+                            valueRange = 10f..60f,
+                            steps = 4,
+                            onValueChange = {
+                                fps = it
+                                state.setTargetFrameRate(it.roundToInt())
+                            },
+                            onValueChangeFinished = { settings.frameRate = fps.roundToInt() },
+                            extraBottomPadding = 12.dp
+                        )
                     }
                     VGap()
                     VGap()
@@ -346,11 +391,11 @@ fun SettingsPage() {
                                 }
                             },
                         )
-                        ChoiceDivider()
+                        NormalDivider()
                         ItemRow(
                             iconRes = R.drawable.ic_pet_paw,
                             title = "WXRIW",
-                            subtitle = "特别感谢：提供Shader",
+                            subtitle = "特别感谢",
                             onClick = {
                                 runCatching {
                                     context.startActivity(
@@ -362,11 +407,11 @@ fun SettingsPage() {
                                 }
                             },
                         )
-                        ChoiceDivider()
+                        NormalDivider()
                         ItemRow(
                             iconRes = R.drawable.ic_pet_paw,
                             title = "Raspberry Monster",
-                            subtitle = "特别感谢：提供Shader",
+                            subtitle = "特别感谢",
                             onClick = {
                                 runCatching {
                                     context.startActivity(
@@ -378,7 +423,7 @@ fun SettingsPage() {
                                 }
                             },
                         )
-                        ChoiceDivider()
+                        NormalDivider()
                         ItemRow(
                             iconRes = R.drawable.ic_info,
                             title = "致谢",
@@ -723,7 +768,7 @@ private fun ImagePickerRow(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ChoiceDivider() {
+private fun NormalDivider() {
     Spacer(
         modifier = Modifier
             .graphicsLayer {
@@ -751,7 +796,7 @@ private fun SwitchDivider() {
 }
 
 @Composable
-private fun RenderSliderRow(
+private fun SliderRow(
     label: String,
     valueLabel: String,
     value: Float,
@@ -964,7 +1009,7 @@ private fun snapSliderValue(
 }
 
 @Composable
-private fun RenderControlDivider() {
+private fun TwoSideDivider() {
     Box(
         modifier = Modifier
             .graphicsLayer {
@@ -1023,7 +1068,7 @@ private fun PresetSectionHeader(text: String, iconRes: Int) {
                 blendMode = BlendMode.Plus
             }
             .fillMaxWidth()
-            .height(44.dp)
+            .height(48.dp)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1043,7 +1088,27 @@ private fun PresetSectionHeader(text: String, iconRes: Int) {
 }
 
 @Composable
+private fun EffectOptionRow(
+    label: String,
+    iconRes: Int,
+    options: List<String>,
+    selected: Int,
+    select: (Int) -> Unit,
+) {
+    Column {
+        PresetSectionHeader(label, iconRes)
+        PresetSegmentedControl(options, selected, select)
+    }
+}
+
+@Composable
 private fun PresetSegmentedControl(count: Int, selected: Int, select: (Int) -> Unit) {
+    PresetSegmentedControl(List(count) { "${it + 1}" }, selected, select)
+}
+
+@Composable
+private fun PresetSegmentedControl(options: List<String>, selected: Int, select: (Int) -> Unit) {
+    val count = options.size
     val spacing = 4.dp
     val selectedIndex = selected.toFloat().coerceIn(0f, (count - 1).toFloat())
     val animatedIndex by animateFloatAsState(
@@ -1095,7 +1160,7 @@ private fun PresetSegmentedControl(count: Int, selected: Int, select: (Int) -> U
     ) {
         repeat(count) { index ->
             PresetSegment(
-                text = "${index + 1}",
+                text = options[index],
                 selected = selected == index,
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
