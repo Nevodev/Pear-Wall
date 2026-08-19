@@ -84,9 +84,11 @@ fun AdvancedBottomSheet(
     portrait: Int,
     landscape: Int,
     randomize: Boolean,
+    blockVideoPlayers: Boolean,
     onPortraitChanged: (Int) -> Unit,
     onLandscapeChanged: (Int) -> Unit,
     onRandomizeChanged: (Boolean) -> Unit,
+    onBlockVideoPlayersChanged: (Boolean) -> Unit,
     onScaleChanged: (Float) -> Unit,
     onFpsChanged: (Float) -> Unit,
     onMoruChanged: (MoruStyle) -> Unit,
@@ -122,6 +124,38 @@ fun AdvancedBottomSheet(
             ),
         ) {
             item { VGap(72.dp) }
+            NoPaddingSection(header = { "常规" }, key = "general") {
+                PaddedSwitchRow(
+                    separator = false,
+                    checked = blockVideoPlayers,
+                    onCheckedChange = onBlockVideoPlayersChanged,
+                    horizontalPadding = 16.dp,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_shuffle),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(24.dp),
+                            tint = colors.primary,
+                        )
+                        Column(
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .padding(vertical = 12.dp)
+                        ) {
+                            Text("屏蔽视频播放器")
+                            Text(
+                                "忽略内置黑名单中的媒体通知和封面",
+                                style = AppTheme.typography.subHeadline,
+                                color = colors.contentVariant,
+                            )
+                        }
+                    }
+                }
+            }
             NoPaddingSection(header = { "画面效果" }, key = "moru") {
                 Row(separator = false) {
                     Column {

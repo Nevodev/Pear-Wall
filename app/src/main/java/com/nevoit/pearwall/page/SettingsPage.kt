@@ -97,6 +97,7 @@ import com.kyant.shapes.RoundedRectangle
 import com.nevoit.pearwall.PearWallRuntime
 import com.nevoit.pearwall.PearWallSettings
 import com.nevoit.pearwall.R
+import com.nevoit.pearwall.media.MediaArtworkService
 import com.nevoit.pearwall.core.animation.Springs
 import com.nevoit.pearwall.core.component.BrandHeader
 import com.nevoit.pearwall.core.component.Icon
@@ -133,6 +134,7 @@ fun SettingsPage() {
         mutableStateOf(settings.pauseUsesNoArtworkBehavior)
     }
     var pauseFlowEnabled by remember { mutableStateOf(settings.pauseFlowEnabled) }
+    var blockVideoPlayers by remember { mutableStateOf(settings.blockVideoPlayers) }
     var portrait by remember { mutableIntStateOf(settings.portraitPreset) }
     var landscape by remember { mutableIntStateOf(settings.landscapePreset) }
     var scrimSelection by remember { mutableIntStateOf(if (settings.scrimAlpha < 0.4f) 0 else 1) }
@@ -513,6 +515,7 @@ fun SettingsPage() {
                 portrait = portrait,
                 landscape = landscape,
                 randomize = randomize,
+                blockVideoPlayers = blockVideoPlayers,
                 onPortraitChanged = {
                     portrait = it
                     settings.portraitPreset = it
@@ -528,6 +531,11 @@ fun SettingsPage() {
                 onRandomizeChanged = {
                     randomize = it
                     settings.randomizeOnScreenOn = it
+                },
+                onBlockVideoPlayersChanged = {
+                    blockVideoPlayers = it
+                    settings.blockVideoPlayers = it
+                    MediaArtworkService.requestRefresh(context)
                 },
                 onScaleChanged = {
                     scale = it

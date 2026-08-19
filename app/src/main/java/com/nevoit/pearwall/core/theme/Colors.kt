@@ -30,7 +30,7 @@ data class AppColors(
 
 val AppLightColors = AppColors(
     background = Color.White,
-    inactiveTrack = Color.White.copy(alpha = 0.3f),
+    inactiveTrack = Color(0xFF787880).copy(.25f),
     activeTrack = Green500,
     inactiveThumb = Color.White,
     activeThumb = Color.White,
@@ -47,7 +47,7 @@ val AppLightColors = AppColors(
 
 val AppDarkColors = AppColors(
     background = Color.Black,
-    inactiveTrack = Color.White.copy(alpha = 0.3f),
+    inactiveTrack = Color(0xFF787880).copy(.25f),
     activeTrack = Green500,
     inactiveThumb = Color.White,
     activeThumb = Color.White,

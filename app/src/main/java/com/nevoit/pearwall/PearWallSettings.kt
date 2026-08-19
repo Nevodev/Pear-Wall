@@ -58,9 +58,15 @@ class PearWallSettings(context: Context) {
     var lastPlaybackPlaying: Boolean
         get() = prefs.getBoolean("last_playback_playing", true)
         set(value) = prefs.edit { putBoolean("last_playback_playing", value) }
+    var lastMediaSessionActive: Boolean
+        get() = prefs.getBoolean("last_media_session_active", true)
+        set(value) = prefs.edit { putBoolean("last_media_session_active", value) }
     var pauseFlowEnabled: Boolean
         get() = prefs.getBoolean("pause_flow", true)
         set(value) = prefs.edit { putBoolean("pause_flow", value) }
+    var blockVideoPlayers: Boolean
+        get() = prefs.getBoolean("block_video_players", false)
+        set(value) = prefs.edit { putBoolean("block_video_players", value) }
 
     companion object {
         const val FILE = "pear_wall_settings"
