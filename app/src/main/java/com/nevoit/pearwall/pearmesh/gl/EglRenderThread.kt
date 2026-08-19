@@ -69,6 +69,16 @@ class EglRenderThread(
         wakeRenderer()
     }
 
+    /** Wakes a power-saving idle renderer and starts a fresh continuous-render window. */
+    fun wakeFromIdle() {
+        if (!renderingEnabled.get()) return
+        if (idle.getAndSet(false)) {
+            renderSessionGeneration.incrementAndGet()
+            logAod("wakeFromIdle totalFrames=${renderedFrameCount.get()}")
+            wakeRenderer()
+        }
+    }
+
     private fun wakeRenderer() {
         renderingLock.withLock {
             renderingCondition.signalAll()

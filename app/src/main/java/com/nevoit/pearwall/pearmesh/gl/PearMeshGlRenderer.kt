@@ -100,6 +100,10 @@ internal class PearMeshGlRenderer(
     private var pendingArtworkId = 0L
     private var artworkTransitionStart = Double.NEGATIVE_INFINITY
     private var artworkAspect = initialArtwork?.bitmap?.let { it.width.toFloat() / it.height } ?: 1f
+    private var lastImageScales = floatArrayOf(1f, 1f, 1f)
+    private var resumeImageScales = lastImageScales.copyOf()
+    private var resumeVisualStartNanos = 0L
+    private var wasPlaybackPlaying = true
 
 
     init {
@@ -114,10 +118,33 @@ internal class PearMeshGlRenderer(
     fun render(width: Int, height: Int, state: RendererState, time: Double) {
         currentScrimAlpha = state.scrimAlpha
         ensureSize(width, height, state)
-        updateArtwork(state, time)
-        val transitionMix = artworkTransitionMix(time)
+        // Artwork transitions must finish even when playback flow is intentionally frozen.
+        val artworkTime = System.nanoTime() / 1_000_000_000.0
+        updateArtwork(state, artworkTime)
+        val transitionMix = artworkTransitionMix(artworkTime)
         val currentLyricsMix = state.behindLyricsProgress
-        val imageScales = imageScales(state, time)
+        if (state.isPlaybackPlaying && !wasPlaybackPlaying) {
+            resumeImageScales = lastImageScales.copyOf()
+            resumeVisualStartNanos = System.nanoTime()
+        }
+        wasPlaybackPlaying = state.isPlaybackPlaying
+
+        val imageScales = if (!state.isPlaybackPlaying && state.pauseFlowEnabled) {
+            lastImageScales
+        } else {
+            val targetScales = imageScales(state, time)
+            if (resumeVisualStartNanos != 0L) {
+                val progress = ((System.nanoTime() - resumeVisualStartNanos).toFloat() /
+                    VISUAL_RESUME_SECONDS_NANOS).coerceIn(0f, 1f)
+                FloatArray(3) { index ->
+                    lerp(resumeImageScales[index], targetScales[index], progress)
+                }.also {
+                    if (progress >= 1f) resumeVisualStartNanos = 0L
+                }
+            } else {
+                targetScales
+            }.also { lastImageScales = it }
+        }
         val flowSpeedMultiplier = if (state.flowSpeed == PearMeshState.FastFlowSpeed) 2.0 else 1.0
         val blurSigma = lerp(
             ORDINARY_BLUR_SIGMA,
@@ -571,6 +598,7 @@ internal class PearMeshGlRenderer(
     }
 
     private companion object {
+        const val VISUAL_RESUME_SECONDS_NANOS = 180_000_000f
         const val BLUR_DOWNSAMPLE = 4f
         const val KAWASE_SIGMA_PER_OFFSET = 16f
         const val LYRICS_BLUR_SIGMA = 42.5f

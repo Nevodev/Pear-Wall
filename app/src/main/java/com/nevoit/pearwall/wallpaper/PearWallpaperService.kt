@@ -60,9 +60,16 @@ class PearWallpaperService : WallpaperService() {
         }
 
         init {
-            state.setArtworkChangedListener {
+            state.setRenderInvalidatedListener {
                 mainHandler.post {
                     if (renderingEnabled) renderer?.restartRenderSession()
+                }
+            }
+            state.setPlaybackChangedListener { playing ->
+                if (playing) {
+                    mainHandler.post {
+                        if (renderingEnabled) renderer?.wakeFromIdle()
+                    }
                 }
             }
             displayManager.registerDisplayListener(displayListener, mainHandler)
@@ -115,7 +122,8 @@ class PearWallpaperService : WallpaperService() {
             displayManager.unregisterDisplayListener(displayListener)
             runCatching { applicationContext.unregisterReceiver(deviceStateReceiver) }
             renderer?.stopAndJoin()
-            state.setArtworkChangedListener(null)
+            state.setRenderInvalidatedListener(null)
+            state.setPlaybackChangedListener(null)
             PearWallRuntime.setAudioConsumerActive(state, false)
             PearWallRuntime.release(state)
             super.onDestroy()

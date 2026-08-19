@@ -9,6 +9,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,6 +51,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -110,6 +112,9 @@ import com.nevoit.pearwall.core.theme.LocalContentColor
 import com.nevoit.pearwall.pearmesh.PearMeshState
 import com.nevoit.pearwall.pearmesh.PearMeshSurface
 import com.nevoit.pearwall.wallpaper.PearWallpaperService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 @Composable
@@ -178,17 +183,23 @@ fun SettingsPage() {
         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    val imagePickerScope = rememberCoroutineScope()
     val imagePicker =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             uri ?: return@rememberLauncherForActivityResult
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
             settings.customArtworkUri = uri.toString()
-            context.contentResolver.openInputStream(uri)
-                ?.use(android.graphics.BitmapFactory::decodeStream)
-                ?.let { PearWallRuntime.updateArtwork(context, it) }
+            imagePickerScope.launch {
+                val bitmap = withContext(Dispatchers.IO) {
+                    decodeArtwork(context, uri)
+                }
+                bitmap?.let { PearWallRuntime.updateCustomArtwork(context, it) }
+            }
         }
     val listState = rememberLazyListState()
     val containerSize = LocalWindowInfo.current.containerSize
@@ -306,7 +317,7 @@ fun SettingsPage() {
                             selected = behavior == PearWallSettings.KEEP_LAST,
                         ) {
                             behavior = PearWallSettings.KEEP_LAST
-                            settings.noArtworkBehavior = behavior
+                            PearWallRuntime.setNoArtworkBehavior(context, behavior)
                         }
                         NormalDivider()
                         Choice(
@@ -315,12 +326,14 @@ fun SettingsPage() {
                             selected = behavior == PearWallSettings.CUSTOM_IMAGE,
                         ) {
                             behavior = PearWallSettings.CUSTOM_IMAGE
-                            settings.noArtworkBehavior = behavior
+                            PearWallRuntime.setNoArtworkBehavior(context, behavior)
                         }
                         if (behavior == PearWallSettings.CUSTOM_IMAGE) {
                             NormalDivider()
                             ImagePickerRow {
-                                imagePicker.launch(arrayOf("image/*"))
+                                imagePicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                                )
                             }
                         }
                     }
@@ -835,6 +848,30 @@ private fun ItemRow(
             modifier = Modifier.size(20.dp),
             tint = Color.White.copy(alpha = if (onClick != null) 0.5f else 0f),
         )
+    }
+}
+
+private fun decodeArtwork(context: android.content.Context, uri: android.net.Uri): android.graphics.Bitmap? {
+    val resolver = context.contentResolver
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    resolver.openInputStream(uri)?.use { stream ->
+        android.graphics.BitmapFactory.decodeStream(stream, null, bounds)
+    }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    val maxDimension = 4096
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > maxDimension ||
+        bounds.outHeight / sampleSize > maxDimension
+    ) {
+        sampleSize *= 2
+    }
+    val options = android.graphics.BitmapFactory.Options().apply {
+        inSampleSize = sampleSize
+        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+    }
+    return resolver.openInputStream(uri)?.use { stream ->
+        android.graphics.BitmapFactory.decodeStream(stream, null, options)
     }
 }
 

@@ -61,7 +61,9 @@ class PearMeshState(
     private val moruStyleTarget = AtomicReference(moruStyle)
     private val playbackPlaying = AtomicReference(true)
     @Volatile
-    private var artworkChangedListener: (() -> Unit)? = null
+    private var renderInvalidatedListener: (() -> Unit)? = null
+    @Volatile
+    private var playbackChangedListener: ((Boolean) -> Unit)? = null
 
     private var demoPulseState by mutableStateOf(false)
     val isDemoPulseEnabled: Boolean
@@ -136,6 +138,7 @@ class PearMeshState(
 
     fun setPauseFlowEnabled(enabled: Boolean) {
         pauseFlow.set(enabled)
+        renderInvalidatedListener?.invoke()
     }
 
     fun setMoruStyle(style: MoruStyle) {
@@ -143,7 +146,10 @@ class PearMeshState(
     }
 
     fun setPlaybackPlaying(playing: Boolean) {
-        playbackPlaying.set(playing)
+        if (playbackPlaying.getAndSet(playing) != playing) {
+            renderInvalidatedListener?.invoke()
+            playbackChangedListener?.invoke(playing)
+        }
     }
 
     /** The state retains this bitmap so a recreated Android surface can upload it again. */
@@ -156,11 +162,15 @@ class PearMeshState(
     fun setArtwork(bitmap: Bitmap) {
         require(!bitmap.isRecycled) { "Artwork bitmap has already been recycled" }
         artwork.set(ArtworkFrame(artworkId.incrementAndGet(), bitmap))
-        artworkChangedListener?.invoke()
+        renderInvalidatedListener?.invoke()
     }
 
-    fun setArtworkChangedListener(listener: (() -> Unit)?) {
-        artworkChangedListener = listener
+    fun setRenderInvalidatedListener(listener: (() -> Unit)?) {
+        renderInvalidatedListener = listener
+    }
+
+    fun setPlaybackChangedListener(listener: ((Boolean) -> Unit)?) {
+        playbackChangedListener = listener
     }
 
     /**

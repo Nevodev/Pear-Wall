@@ -22,7 +22,6 @@ object PearWallRuntime {
     private val audioHandler = Handler(audioThread.looper)
     private val states = CopyOnWriteArraySet<PearMeshState>()
     private val activeAudioConsumers = CopyOnWriteArraySet<PearMeshState>()
-    private var lastPublishedArtwork: Bitmap? = null
     private var lastMediaArtwork: Bitmap? = null
     private val playbackPlaying = AtomicBoolean(true)
 
@@ -70,19 +69,24 @@ object PearWallRuntime {
 
     @Synchronized
     fun setPlaybackPlaying(context: Context, playing: Boolean) {
-        if (playbackPlaying.getAndSet(playing) == playing) {
+        if (playbackPlaying.get() == playing) {
             Log.d(TAG, "setPlaybackPlaying unchanged playing=$playing")
             return
         }
 
         val start = SystemClock.uptimeMillis()
         Log.d(TAG, "setPlaybackPlaying playing=$playing thread=${Thread.currentThread().name}")
+        val settings = PearWallSettings(context)
+        // Change the artwork while every playback state still reports the old value.
+        if (playing) {
+            restoreMediaArtwork(context)
+        } else if (settings.pauseUsesNoArtworkBehavior) {
+            applyNoArtworkBehavior(context, settings)
+        }
+        // Publish the playback transition only after the artwork transition is complete.
+        playbackPlaying.set(playing)
         states.forEach { it.setPlaybackPlaying(playing) }
         updateAudioMeterState()
-        if (!playing) {
-            val settings = PearWallSettings(context)
-            if (settings.pauseUsesNoArtworkBehavior) applyNoArtworkBehavior(context, settings)
-        }
         Log.d(TAG, "setPlaybackPlaying done cost=${SystemClock.uptimeMillis() - start}ms")
     }
 
@@ -90,14 +94,27 @@ object PearWallRuntime {
     fun setPauseUsesNoArtworkBehavior(context: Context, enabled: Boolean) {
         PearWallSettings(context).pauseUsesNoArtworkBehavior = enabled
         if (!playbackPlaying.get()) {
-            if (enabled) {
+            if (enabled && PearWallSettings(context).noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE) {
                 applyNoArtworkBehavior(context, PearWallSettings(context))
             } else {
-                lastMediaArtwork?.let { bitmap ->
-                    lastPublishedArtwork = bitmap
-                    states.forEach { it.setArtwork(bitmap) }
-                }
+                restoreMediaArtwork(context)
             }
+        }
+    }
+
+    @Synchronized
+    fun setNoArtworkBehavior(context: Context, behavior: Int) {
+        val settings = PearWallSettings(context)
+        settings.noArtworkBehavior = behavior
+        if (!playbackPlaying.get() && settings.pauseUsesNoArtworkBehavior) {
+            if (behavior == PearWallSettings.CUSTOM_IMAGE) {
+                applyNoArtworkBehavior(context, settings)
+            } else {
+                restoreMediaArtwork(context)
+            }
+        } else if (behavior == PearWallSettings.KEEP_LAST) {
+            // Switching away from the custom fallback must refresh an already visible fallback.
+            restoreMediaArtwork(context)
         }
     }
 
@@ -160,17 +177,36 @@ object PearWallRuntime {
     }
 
     @Synchronized
+    fun updateCustomArtwork(context: Context, bitmap: Bitmap) {
+        if (bitmap.isRecycled) return
+        customArtworkCache(context).save(bitmap)
+        val settings = PearWallSettings(context)
+        val shouldShow = !playbackPlaying.get() &&
+            settings.noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE &&
+            settings.pauseUsesNoArtworkBehavior
+        if (shouldShow) {
+            states.forEach { it.setArtwork(bitmap) }
+        }
+    }
+
+    @Synchronized
     fun updateArtwork(context: Context, bitmap: Bitmap) {
         if (bitmap.isRecycled) return
-        val duplicate = lastPublishedArtwork?.let { previous ->
+        val duplicate = lastMediaArtwork?.let { previous ->
             !previous.isRecycled && runCatching { previous.sameAs(bitmap) }.getOrDefault(false)
         } ?: false
-        if (duplicate) return
+        if (!duplicate) {
+            lastMediaArtwork = bitmap
+            ArtworkCache(context).save(bitmap)
+        }
 
-        lastPublishedArtwork = bitmap
-        lastMediaArtwork = bitmap
-        ArtworkCache(context).save(bitmap)
-        states.forEach { it.setArtwork(bitmap) }
+        val settings = PearWallSettings(context)
+        val showingPauseArtwork = !playbackPlaying.get() &&
+            settings.pauseUsesNoArtworkBehavior &&
+            settings.noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE
+        if (!showingPauseArtwork && (!duplicate || states.any { it.snapshot().artwork == null })) {
+            states.forEach { it.setArtwork(lastMediaArtwork ?: bitmap) }
+        }
     }
 
     fun showNoArtworkFallback(context: Context) {
@@ -179,16 +215,24 @@ object PearWallRuntime {
 
     private fun applyNoArtworkBehavior(context: Context, settings: PearWallSettings) {
         if (settings.noArtworkBehavior != PearWallSettings.CUSTOM_IMAGE) return
-        settings.customArtworkUri?.let { value ->
-            val start = SystemClock.uptimeMillis()
-            Log.d(TAG, "applyNoArtworkBehavior begin thread=${Thread.currentThread().name}")
-            runCatching {
-                context.contentResolver.openInputStream(Uri.parse(value))?.use(BitmapFactory::decodeStream)
-            }.getOrNull()?.let { bitmap ->
-                states.forEach { it.setArtwork(bitmap) }
+        val start = SystemClock.uptimeMillis()
+        Log.d(TAG, "applyNoArtworkBehavior begin thread=${Thread.currentThread().name}")
+        val bitmap = customArtworkCache(context).load()
+            ?: settings.customArtworkUri?.let { value ->
+                decodeArtwork(context, Uri.parse(value))
             }
-            Log.d(TAG, "applyNoArtworkBehavior end cost=${SystemClock.uptimeMillis() - start}ms")
+        bitmap?.let { artwork ->
+            customArtworkCache(context).save(artwork)
+            states.forEach { it.setArtwork(artwork) }
         }
+        Log.d(TAG, "applyNoArtworkBehavior end cost=${SystemClock.uptimeMillis() - start}ms")
+    }
+
+    private fun restoreMediaArtwork(context: Context) {
+        val bitmap = lastMediaArtwork ?: ArtworkCache(context).load()?.also {
+            lastMediaArtwork = it
+        }
+        bitmap?.let { artwork -> states.forEach { it.setArtwork(artwork) } }
     }
 
     fun applySettings(context: Context) {
@@ -227,15 +271,58 @@ object PearWallRuntime {
     }
 
     private fun initialArtwork(context: Context, settings: PearWallSettings): Bitmap? {
-        if (settings.noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE) {
-            settings.customArtworkUri?.let { value ->
-                runCatching {
-                    context.contentResolver.openInputStream(Uri.parse(value))?.use(BitmapFactory::decodeStream)
-                }.getOrNull()?.let { return it }
-            }
+        val mediaArtwork = ArtworkCache(context).load()
+        val customArtwork = if (settings.noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE) {
+            customArtworkCache(context).load()
+                ?: settings.customArtworkUri?.let { value ->
+                    decodeArtwork(context, Uri.parse(value))
+                }
+        } else {
+            null
         }
-        return ArtworkCache(context).load()
+
+        // Never show a custom image over a currently playing session. If no media cover
+        // is cached yet, wait for the media service instead of showing a wrong image.
+        return if (!playbackPlaying.get() && settings.pauseUsesNoArtworkBehavior) {
+            customArtwork ?: mediaArtwork
+        } else {
+            mediaArtwork
+        }
     }
 
+    private fun customArtworkCache(context: Context): ArtworkCache =
+        ArtworkCache(context, "custom_artwork.webp")
+
+    private fun decodeArtwork(context: Context, uri: Uri): Bitmap? {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching {
+            resolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, bounds)
+            }
+        }.getOrElse { return null }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        var sampleSize = 1
+        while (bounds.outWidth / sampleSize > MAX_ARTWORK_DIMENSION ||
+            bounds.outHeight / sampleSize > MAX_ARTWORK_DIMENSION
+        ) {
+            sampleSize *= 2
+        }
+        return runCatching {
+            resolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(
+                    stream,
+                    null,
+                    BitmapFactory.Options().apply {
+                        inSampleSize = sampleSize
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    },
+                )
+            }
+        }.getOrNull()
+    }
+
+    private const val MAX_ARTWORK_DIMENSION = 2048
     private const val TAG = "PearWallRuntime"
 }
