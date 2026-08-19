@@ -45,6 +45,10 @@ class MediaArtworkService : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         refreshMediaSessions()
         if (sbn.notification.category == Notification.CATEGORY_TRANSPORT) {
+            // Some players keep a paused MediaController briefly after their
+            // notification is swiped away. The removed transport notification is
+            // the reliable signal that the player is no longer available.
+            PearWallRuntime.setPlaybackPlaying(applicationContext, false)
             PearWallRuntime.showNoArtworkFallback(applicationContext)
         }
     }
@@ -54,6 +58,7 @@ class MediaArtworkService : NotificationListenerService() {
         mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionListener)
         unregisterControllerCallbacks()
         controllers = emptyList()
+        PearWallRuntime.setMediaSessionActive(false)
         mediaSessionManager = null
         PearWallRuntime.setPlaybackPlaying(applicationContext, false)
         super.onListenerDisconnected()
@@ -84,6 +89,9 @@ class MediaArtworkService : NotificationListenerService() {
     private fun replaceControllers(sessions: List<MediaController>) {
         unregisterControllerCallbacks()
         controllers = sessions
+        PearWallRuntime.setMediaSessionActive(
+            controllers.any { it.metadata != null || it.playbackState != null },
+        )
         controllers.forEach { controller ->
             val callback = object : MediaController.Callback() {
                 override fun onMetadataChanged(metadata: MediaMetadata?) {

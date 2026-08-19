@@ -55,6 +55,9 @@ class PearWallSettings(context: Context) {
     var pauseUsesNoArtworkBehavior: Boolean
         get() = prefs.getBoolean("pause_no_artwork", false)
         set(value) = prefs.edit { putBoolean("pause_no_artwork", value) }
+    var lastPlaybackPlaying: Boolean
+        get() = prefs.getBoolean("last_playback_playing", true)
+        set(value) = prefs.edit { putBoolean("last_playback_playing", value) }
     var pauseFlowEnabled: Boolean
         get() = prefs.getBoolean("pause_flow", true)
         set(value) = prefs.edit { putBoolean("pause_flow", value) }

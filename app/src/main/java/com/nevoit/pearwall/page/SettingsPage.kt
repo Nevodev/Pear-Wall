@@ -109,7 +109,6 @@ import com.nevoit.pearwall.core.modifier.cachedClip
 import com.nevoit.pearwall.core.modifier.thenIf
 import com.nevoit.pearwall.core.theme.AppTheme
 import com.nevoit.pearwall.core.theme.LocalContentColor
-import com.nevoit.pearwall.pearmesh.PearMeshState
 import com.nevoit.pearwall.pearmesh.PearMeshSurface
 import com.nevoit.pearwall.wallpaper.PearWallpaperService
 import kotlinx.coroutines.Dispatchers
@@ -372,7 +371,7 @@ fun SettingsPage() {
                     SettingsCard("画面效果") {
                         ToggleRow(
                             "开启音频可视化",
-                            "可能会显著增加电量消耗",
+                            "可能会略微增加功耗",
                             iconRes = R.drawable.ic_waveform,
                             checked = audioVisualization
                         ) { enabled ->
@@ -851,7 +850,10 @@ private fun ItemRow(
     }
 }
 
-private fun decodeArtwork(context: android.content.Context, uri: android.net.Uri): android.graphics.Bitmap? {
+private fun decodeArtwork(
+    context: android.content.Context,
+    uri: android.net.Uri
+): android.graphics.Bitmap? {
     val resolver = context.contentResolver
     val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
     resolver.openInputStream(uri)?.use { stream ->

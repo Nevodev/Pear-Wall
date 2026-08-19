@@ -23,10 +23,18 @@ object PearWallRuntime {
     private val states = CopyOnWriteArraySet<PearMeshState>()
     private val activeAudioConsumers = CopyOnWriteArraySet<PearMeshState>()
     private var lastMediaArtwork: Bitmap? = null
+    @Volatile
+    private var lastCustomArtwork: Bitmap? = null
     private val playbackPlaying = AtomicBoolean(true)
+    private val mediaSessionActive = AtomicBoolean(false)
+    private var playbackStateInitialized = false
 
     fun createState(context: Context): PearMeshState {
         val settings = PearWallSettings(context)
+        if (!playbackStateInitialized) {
+            playbackPlaying.set(settings.lastPlaybackPlaying)
+            playbackStateInitialized = true
+        }
         return PearMeshState(
             portraitPresetIndex = settings.portraitPreset,
             landscapePresetIndex = settings.landscapePreset,
@@ -68,23 +76,27 @@ object PearWallRuntime {
     }
 
     @Synchronized
+    fun setMediaSessionActive(active: Boolean) {
+        mediaSessionActive.set(active)
+    }
+
+    @Synchronized
     fun setPlaybackPlaying(context: Context, playing: Boolean) {
-        if (playbackPlaying.get() == playing) {
+        val start = SystemClock.uptimeMillis()
+        Log.d(TAG, "setPlaybackPlaying playing=$playing thread=${Thread.currentThread().name}")
+        val settings = PearWallSettings(context)
+        settings.lastPlaybackPlaying = playing
+        val changed = playbackPlaying.getAndSet(playing) != playing
+        if (!changed) {
             Log.d(TAG, "setPlaybackPlaying unchanged playing=$playing")
             return
         }
 
-        val start = SystemClock.uptimeMillis()
-        Log.d(TAG, "setPlaybackPlaying playing=$playing thread=${Thread.currentThread().name}")
-        val settings = PearWallSettings(context)
-        // Change the artwork while every playback state still reports the old value.
         if (playing) {
             restoreMediaArtwork(context)
         } else if (settings.pauseUsesNoArtworkBehavior) {
             applyNoArtworkBehavior(context, settings)
         }
-        // Publish the playback transition only after the artwork transition is complete.
-        playbackPlaying.set(playing)
         states.forEach { it.setPlaybackPlaying(playing) }
         updateAudioMeterState()
         Log.d(TAG, "setPlaybackPlaying done cost=${SystemClock.uptimeMillis() - start}ms")
@@ -106,7 +118,13 @@ object PearWallRuntime {
     fun setNoArtworkBehavior(context: Context, behavior: Int) {
         val settings = PearWallSettings(context)
         settings.noArtworkBehavior = behavior
-        if (!playbackPlaying.get() && settings.pauseUsesNoArtworkBehavior) {
+        if (!playbackPlaying.get() &&
+            (!mediaSessionActive.get() || settings.pauseUsesNoArtworkBehavior)
+        ) {
+            // With no active media session, this is a no-artwork state even when
+            // the pause-only option is disabled. A paused session still obeys that
+            // option, so changing the fallback does not unexpectedly replace its
+            // last cover.
             if (behavior == PearWallSettings.CUSTOM_IMAGE) {
                 applyNoArtworkBehavior(context, settings)
             } else {
@@ -179,6 +197,7 @@ object PearWallRuntime {
     @Synchronized
     fun updateCustomArtwork(context: Context, bitmap: Bitmap) {
         if (bitmap.isRecycled) return
+        lastCustomArtwork = bitmap
         customArtworkCache(context).save(bitmap)
         val settings = PearWallSettings(context)
         val shouldShow = !playbackPlaying.get() &&
@@ -217,14 +236,18 @@ object PearWallRuntime {
         if (settings.noArtworkBehavior != PearWallSettings.CUSTOM_IMAGE) return
         val start = SystemClock.uptimeMillis()
         Log.d(TAG, "applyNoArtworkBehavior begin thread=${Thread.currentThread().name}")
-        val bitmap = customArtworkCache(context).load()
+        val bitmap = lastCustomArtwork?.takeUnless(Bitmap::isRecycled)
+            ?: customArtworkCache(context).load()?.also { lastCustomArtwork = it }
             ?: settings.customArtworkUri?.let { value ->
-                decodeArtwork(context, Uri.parse(value))
+                decodeArtwork(context, Uri.parse(value))?.also { artwork ->
+                    lastCustomArtwork = artwork
+                    // Only persist when the URI was actually decoded. Re-encoding an
+                    // image just loaded from this cache caused a 350–450 ms main-thread
+                    // stall every time the switch was toggled.
+                    customArtworkCache(context).save(artwork)
+                }
             }
-        bitmap?.let { artwork ->
-            customArtworkCache(context).save(artwork)
-            states.forEach { it.setArtwork(artwork) }
-        }
+        bitmap?.let { artwork -> states.forEach { it.setArtwork(artwork) } }
         Log.d(TAG, "applyNoArtworkBehavior end cost=${SystemClock.uptimeMillis() - start}ms")
     }
 
@@ -273,18 +296,24 @@ object PearWallRuntime {
     private fun initialArtwork(context: Context, settings: PearWallSettings): Bitmap? {
         val mediaArtwork = ArtworkCache(context).load()
         val customArtwork = if (settings.noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE) {
-            customArtworkCache(context).load()
+            lastCustomArtwork?.takeUnless(Bitmap::isRecycled)
+                ?: customArtworkCache(context).load()?.also { lastCustomArtwork = it }
                 ?: settings.customArtworkUri?.let { value ->
-                    decodeArtwork(context, Uri.parse(value))
+                    decodeArtwork(context, Uri.parse(value))?.also { lastCustomArtwork = it }
                 }
         } else {
             null
         }
 
-        // Never show a custom image over a currently playing session. If no media cover
-        // is cached yet, wait for the media service instead of showing a wrong image.
-        return if (!playbackPlaying.get() && settings.pauseUsesNoArtworkBehavior) {
-            customArtwork ?: mediaArtwork
+        // A persisted stopped state means the previous media session was removed.
+        // Restore the no-artwork choice immediately while the media listener catches
+        // up during cold start. The pause-only switch must not gate this case.
+        return if (!playbackPlaying.get()) {
+            if (settings.noArtworkBehavior == PearWallSettings.CUSTOM_IMAGE) {
+                customArtwork ?: mediaArtwork
+            } else {
+                mediaArtwork
+            }
         } else {
             mediaArtwork
         }
