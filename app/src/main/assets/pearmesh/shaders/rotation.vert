@@ -11,13 +11,29 @@ uniform bool uArtworkFill;
 
 out vec2 vTexCoord;
 
-vec2 rotateClockwise(vec2 value, float angle) {
+vec2 rotateCounterClockwise(vec2 value, float angle) {
     float sine = sin(angle);
     float cosine = cos(angle);
     return vec2(
-        cosine * value.x + sine * value.y,
-        -sine * value.x + cosine * value.y
+        cosine * value.x - sine * value.y,
+        sine * value.x + cosine * value.y
     );
+}
+
+vec2 modelTranslation(int instance) {
+    if (instance == 1) return vec2(-0.25, 0.15);
+    if (instance == 2) return vec2(0.7, 0.7);
+    return vec2(0.0);
+}
+
+float modelScale(int instance) {
+    return instance == 0 ? 1.4 : 0.7;
+}
+
+float rotationTimeScale(int instance) {
+    if (instance == 1) return 70.0;
+    if (instance == 2) return 90.0;
+    return 120.0;
 }
 
 void main() {
@@ -27,25 +43,20 @@ void main() {
         return;
     }
 
-    vec2 translation = vec2(0.0);
-    float timeScale = 120.0;
-    float imageScale = uImageScales.x;
-    if (uInstance == 1) {
-        translation = vec2(-0.5, 0.7);
-        timeScale = 90.0;
-        imageScale = uImageScales.y;
-    } else if (uInstance == 2) {
-        translation = vec2(-0.95, -0.7);
-        timeScale = 70.0;
-        imageScale = uImageScales.z;
-    }
-
-    float angle = uTime * 6.283185307179586 / timeScale;
-    vec2 position = aPosition * imageScale;
-    position = rotateClockwise(position, angle);
-    position += translation;
-    position = rotateClockwise(position, angle);
+    float twoPi = 6.2831853071795864769;
+    float angle = uTime * twoPi / rotationTimeScale(uInstance);
+    vec2 position = rotateCounterClockwise(aPosition, angle);
+    position *= modelScale(uInstance);
+    position += modelTranslation(uInstance);
     position *= uViewScale;
+    // Lyricify applies one shared scale to the whole artwork group.
+    position *= uImageScales.x;
+
+    // Instance 2 is parented to instance 0 and receives the parent rotation once.
+    if (uInstance == 2) {
+        float parentAngle = uTime * twoPi / rotationTimeScale(0);
+        position = rotateCounterClockwise(position, parentAngle);
+    }
 
     gl_Position = vec4(position, 0.0, 1.0);
     vTexCoord = aTexCoord;

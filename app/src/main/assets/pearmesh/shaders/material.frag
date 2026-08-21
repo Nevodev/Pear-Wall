@@ -35,6 +35,8 @@ vec3 treated(sampler2D source, vec2 coordinate) {
     vec3 color = texture(source, coordinate).rgb;
     color = applySaturation(color, 1.4);
     color = clamp(color, vec3(-0.752941), vec3(1.25098));
+    // Updated Lyricify material reduces saturation again before composition.
+    color = applySaturation(color, 0.70);
     return mix(color, vec3(0.0), uBlackScrimAlpha);
 }
 
@@ -103,5 +105,5 @@ void main() {
         ditherStrength *= 1.0 - uLyricsModeMix;
     }
     color += dither * (ditherStrength / 255.0);
-    outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    outColor = vec4(clamp(color, 0.07, 0.97), 1.0);
 }
