@@ -267,20 +267,21 @@ internal class PearMeshGlRenderer(
         bindTexture(1, ordinaryTexture)
 
         when {
-            modeMix <= 0f -> drawFullscreenMaterial(MATERIAL_ORDINARY, modeMix)
+            modeMix <= 0f -> drawFullscreenMaterial(MATERIAL_ORDINARY, modeMix, moruStyle)
             modeMix >= 1f -> {
                 if (isPortrait) {
-                    drawFullscreenMaterial(MATERIAL_LYRICS, modeMix)
+                    drawFullscreenMaterial(MATERIAL_LYRICS, modeMix, moruStyle)
                 }
-                drawPinchMaterial(MATERIAL_LYRICS, modeMix, time)
+                drawPinchMaterial(MATERIAL_LYRICS, modeMix, time, moruStyle)
             }
 
             else -> {
                 drawFullscreenMaterial(
                     if (isPortrait) MATERIAL_COMPOSITE else MATERIAL_LANDSCAPE_BACKGROUND,
                     modeMix,
+                    moruStyle,
                 )
-                drawPinchMaterial(MATERIAL_COMPOSITE, modeMix, time)
+                drawPinchMaterial(MATERIAL_COMPOSITE, modeMix, time, moruStyle)
             }
         }
 
@@ -291,13 +292,13 @@ internal class PearMeshGlRenderer(
         }
     }
 
-    private fun drawFullscreenMaterial(mode: Int, modeMix: Float) {
-        setMaterialUniforms(fullscreenMaterialProgram, mode, modeMix)
+    private fun drawFullscreenMaterial(mode: Int, modeMix: Float, moruStyle: MoruStyle) {
+        setMaterialUniforms(fullscreenMaterialProgram, mode, modeMix, moruStyle)
         quad.draw()
     }
 
-    private fun drawPinchMaterial(mode: Int, modeMix: Float, time: Double) {
-        setMaterialUniforms(pinchMaterialProgram, mode, modeMix)
+    private fun drawPinchMaterial(mode: Int, modeMix: Float, time: Double, moruStyle: MoruStyle) {
+        setMaterialUniforms(pinchMaterialProgram, mode, modeMix, moruStyle)
         pinchMaterialProgram.float("uTime", time.toFloat())
         if (isPortrait) {
             pinchMaterialProgram.vec4("uTextureTransform", 1f, 1f, 0f, 0f)
@@ -307,11 +308,21 @@ internal class PearMeshGlRenderer(
         mesh.draw()
     }
 
-    private fun setMaterialUniforms(program: GlProgram, mode: Int, modeMix: Float) {
+    private fun setMaterialUniforms(
+        program: GlProgram,
+        mode: Int,
+        modeMix: Float,
+        moruStyle: MoruStyle,
+    ) {
         program.use()
         program.int("uLyricsBackdrop", 0)
         program.int("uOrdinaryBackdrop", 1)
-        program.float("uBlackScrimAlpha", currentScrimAlpha)
+        val scrimAlpha = if (moruStyle == MoruStyle.OFF) {
+            currentScrimAlpha
+        } else {
+            currentScrimAlpha * 0.5f
+        }
+        program.float("uBlackScrimAlpha", scrimAlpha)
         program.float("uLyricsModeMix", modeMix)
         program.float("uDitherStrength", 1f)
         program.int("uMaterialMode", mode)

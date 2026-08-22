@@ -35,9 +35,14 @@ vec3 treated(sampler2D source, vec2 coordinate) {
     vec3 color = texture(source, coordinate).rgb;
     color = applySaturation(color, 1.4);
     color = clamp(color, vec3(-0.752941), vec3(1.25098));
-    // Updated Lyricify material reduces saturation again before composition.
-    color = applySaturation(color, 0.70);
-    return mix(color, vec3(0.0), uBlackScrimAlpha);
+    // Updated Lyricify material reduces saturation again before composition. Original is 0.70.
+    color = applySaturation(color, 0.90);
+    // Apply a non-linear plus darker black scrim. Makes it more like Apple Music.
+    float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    float brightnessCurve = pow(max(luminance, 0.0), 1.2);
+    float subtraction = uBlackScrimAlpha * brightnessCurve;
+    color = max(color - vec3(subtraction), vec3(0.0));
+    return color;
 }
 
 /* Moru is applied in a separate fullscreen pass after the mesh material. */
