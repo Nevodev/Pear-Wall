@@ -43,6 +43,9 @@ class PearWallSettings(context: Context) {
     var blurMultiplier: Float
         get() = prefs.getFloat("blur_multiplier", DEFAULT_BLUR_MULTIPLIER)
         set(value) = prefs.edit { putFloat("blur_multiplier", value) }
+    var blurEnabled: Boolean
+        get() = prefs.getBoolean("blur_enabled", true)
+        set(value) = prefs.edit { putBoolean("blur_enabled", value) }
     var flowSpeed: Int
         get() = prefs.getInt("flow_speed", STANDARD_FLOW_SPEED)
         set(value) = prefs.edit { putInt("flow_speed", value) }

@@ -28,6 +28,7 @@ class PearMeshState(
     targetFrameRate: Int = DefaultTargetFrameRate,
     scrimAlpha: Float = DefaultScrimAlpha,
     blurMultiplier: Float = DefaultBlurMultiplier,
+    blurEnabled: Boolean = true,
     flowSpeed: Int = StandardFlowSpeed,
     audioVisualizationEnabled: Boolean = false,
     pauseFlowEnabled: Boolean = true,
@@ -55,6 +56,7 @@ class PearMeshState(
     )
     private val scrimAlphaTarget = AtomicReference(scrimAlpha.coerceIn(0f, 1f))
     private val blurMultiplierTarget = AtomicReference(blurMultiplier.coerceAtLeast(0f))
+    private val blurEnabledTarget = AtomicReference(blurEnabled)
     private val flowSpeedTarget = AtomicInteger(flowSpeed.coerceIn(StandardFlowSpeed, FastFlowSpeed))
     private val audioVisualization = AtomicReference(audioVisualizationEnabled)
     private val pauseFlow = AtomicReference(pauseFlowEnabled)
@@ -125,6 +127,10 @@ class PearMeshState(
 
     fun setBlurMultiplier(multiplier: Float) {
         blurMultiplierTarget.set(multiplier.coerceAtLeast(0f))
+    }
+
+    fun setBlurEnabled(enabled: Boolean) {
+        blurEnabledTarget.set(enabled)
     }
 
     fun setFlowSpeed(speed: Int) {
@@ -201,6 +207,7 @@ class PearMeshState(
         targetFrameRate = targetFrameRateTarget.get(),
         scrimAlpha = scrimAlphaTarget.get(),
         blurMultiplier = blurMultiplierTarget.get(),
+        blurEnabled = blurEnabledTarget.get(),
         flowSpeed = flowSpeedTarget.get(),
         audioVisualizationEnabled = audioVisualization.get(),
         pauseFlowEnabled = pauseFlow.get(),
@@ -246,6 +253,7 @@ data class RendererState(
     val targetFrameRate: Int,
     val scrimAlpha: Float,
     val blurMultiplier: Float,
+    val blurEnabled: Boolean,
     val flowSpeed: Int,
     val audioVisualizationEnabled: Boolean,
     val pauseFlowEnabled: Boolean,

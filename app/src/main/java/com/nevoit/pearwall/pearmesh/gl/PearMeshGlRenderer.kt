@@ -2,8 +2,8 @@ package com.nevoit.pearwall.pearmesh.gl
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.opengl.GLES30
 import android.opengl.GLUtils
 import androidx.core.graphics.createBitmap
@@ -135,7 +135,7 @@ internal class PearMeshGlRenderer(
             val targetScales = imageScales(state, time)
             if (resumeVisualStartNanos != 0L) {
                 val progress = ((System.nanoTime() - resumeVisualStartNanos).toFloat() /
-                    VISUAL_RESUME_SECONDS_NANOS).coerceIn(0f, 1f)
+                        VISUAL_RESUME_SECONDS_NANOS).coerceIn(0f, 1f)
                 FloatArray(3) { index ->
                     lerp(resumeImageScales[index], targetScales[index], progress)
                 }.also {
@@ -160,14 +160,31 @@ internal class PearMeshGlRenderer(
         val lyricTexture: Int
         val ordinaryTexture: Int
         if (needsOrdinary && needsLyrics) {
-            renderBackdrop(floatArrayOf(1f, 1f, 1f), blurSigma, ordinaryTarget, time, transitionMix, flowSpeedMultiplier)
-            renderBackdrop(imageScales, blurSigma, lyricTarget, time, transitionMix, flowSpeedMultiplier)
+            renderBackdrop(
+                floatArrayOf(1f, 1f, 1f),
+                blurSigma,
+                state.blurEnabled,
+                ordinaryTarget,
+                time,
+                transitionMix,
+                flowSpeedMultiplier
+            )
+            renderBackdrop(
+                imageScales,
+                blurSigma,
+                state.blurEnabled,
+                lyricTarget,
+                time,
+                transitionMix,
+                flowSpeedMultiplier
+            )
             ordinaryTexture = ordinaryTarget.texture
             lyricTexture = lyricTarget.texture
         } else {
             renderBackdrop(
                 if (needsLyrics) imageScales else floatArrayOf(1f, 1f, 1f),
                 blurSigma,
+                state.blurEnabled,
                 lyricTarget,
                 time,
                 transitionMix,
@@ -183,6 +200,7 @@ internal class PearMeshGlRenderer(
     private fun renderBackdrop(
         imageScales: FloatArray,
         blurSigma: Float,
+        blurEnabled: Boolean,
         target: RenderTarget,
         time: Double,
         transitionMix: Float,
@@ -217,6 +235,11 @@ internal class PearMeshGlRenderer(
         repeat(3) { instance ->
             rotationProgram.int("uInstance", instance)
             quad.draw()
+        }
+
+        if (!blurEnabled) {
+            kawasePass(rotation, target, 0f, upsample = false)
+            return
         }
 
         val kawaseOffset = blurSigma / KAWASE_SIGMA_PER_OFFSET
@@ -348,25 +371,31 @@ internal class PearMeshGlRenderer(
         }
         moruProgram.float("uAspect", 1f / artworkAspect)
         moruProgram.float("uNormalScale", mvpScaleX / normalScaleX)
-        moruProgram.float("uIor", when (style) {
-            MoruStyle.NARROW -> 0.68f
-            MoruStyle.WIDE -> 0.58f
-            MoruStyle.SMOOTH -> 0.60f
-            MoruStyle.OFF -> 1f
-        })
+        moruProgram.float(
+            "uIor", when (style) {
+                MoruStyle.NARROW -> 0.68f
+                MoruStyle.WIDE -> 0.58f
+                MoruStyle.SMOOTH -> 0.60f
+                MoruStyle.OFF -> 1f
+            }
+        )
         moruProgram.float("uSurfaceRatio", minOf(screenAspect, 1f / screenAspect))
-        moruProgram.float("uDisplacement", when (style) {
-            MoruStyle.NARROW -> 0.36f
-            MoruStyle.WIDE -> 0.58f
-            MoruStyle.SMOOTH -> 0.37f
-            MoruStyle.OFF -> 0f
-        })
-        moruProgram.float("uThickness", when (style) {
-            MoruStyle.NARROW -> 0.30f
-            MoruStyle.WIDE -> 0.36f
-            MoruStyle.SMOOTH -> 0.06f
-            MoruStyle.OFF -> 0f
-        })
+        moruProgram.float(
+            "uDisplacement", when (style) {
+                MoruStyle.NARROW -> 0.36f
+                MoruStyle.WIDE -> 0.58f
+                MoruStyle.SMOOTH -> 0.37f
+                MoruStyle.OFF -> 0f
+            }
+        )
+        moruProgram.float(
+            "uThickness", when (style) {
+                MoruStyle.NARROW -> 0.30f
+                MoruStyle.WIDE -> 0.36f
+                MoruStyle.SMOOTH -> 0.06f
+                MoruStyle.OFF -> 0f
+            }
+        )
         moruProgram.float("uDarkness", if (style == MoruStyle.WIDE) 0.10f else 0f)
         moruProgram.float("uLightness", if (style == MoruStyle.WIDE) 0.65f else 0.40f)
         moruProgram.float("uShadowness", if (style == MoruStyle.WIDE) 0.36f else 1f)
@@ -380,7 +409,18 @@ internal class PearMeshGlRenderer(
     private fun blitToScreen(source: RenderTarget) {
         GLES30.glBindFramebuffer(GLES30.GL_READ_FRAMEBUFFER, source.framebuffer)
         GLES30.glBindFramebuffer(GLES30.GL_DRAW_FRAMEBUFFER, 0)
-        GLES30.glBlitFramebuffer(0, 0, source.width, source.height, 0, 0, surfaceWidth, surfaceHeight, GLES30.GL_COLOR_BUFFER_BIT, GLES30.GL_LINEAR)
+        GLES30.glBlitFramebuffer(
+            0,
+            0,
+            source.width,
+            source.height,
+            0,
+            0,
+            surfaceWidth,
+            surfaceHeight,
+            GLES30.GL_COLOR_BUFFER_BIT,
+            GLES30.GL_LINEAR
+        )
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 
@@ -504,8 +544,8 @@ internal class PearMeshGlRenderer(
         val nowNanos = System.nanoTime()
         val audioFrame = state.audioFrame
         val audioCurrent = state.audioVisualizationEnabled &&
-            audioFrame.currentUpdatedAtNanos != 0L &&
-            nowNanos - audioFrame.currentUpdatedAtNanos <= AUDIO_REPORT_TIMEOUT_NANOS
+                audioFrame.currentUpdatedAtNanos != 0L &&
+                nowNanos - audioFrame.currentUpdatedAtNanos <= AUDIO_REPORT_TIMEOUT_NANOS
         val lanePower = if (demoPower >= 0f) {
             FloatArray(3) { demoPower }
         } else if (audioCurrent) {
@@ -602,7 +642,11 @@ internal class PearMeshGlRenderer(
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
+        GLES30.glTexParameteri(
+            GLES30.GL_TEXTURE_2D,
+            GLES30.GL_TEXTURE_WRAP_T,
+            GLES30.GL_CLAMP_TO_EDGE
+        )
         GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()
         return handle[0]

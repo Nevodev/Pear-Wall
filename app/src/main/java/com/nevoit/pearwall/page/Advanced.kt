@@ -81,6 +81,7 @@ fun AdvancedBottomSheet(
     scale: Float,
     fps: Float,
     moruStyle: MoruStyle,
+    blurEnabled: Boolean,
     portrait: Int,
     landscape: Int,
     randomize: Boolean,
@@ -92,6 +93,7 @@ fun AdvancedBottomSheet(
     onScaleChanged: (Float) -> Unit,
     onFpsChanged: (Float) -> Unit,
     onMoruChanged: (MoruStyle) -> Unit,
+    onBlurEnabledChanged: (Boolean) -> Unit,
     onDismissed: () -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -157,8 +159,27 @@ fun AdvancedBottomSheet(
                 }
             }
             NoPaddingSection(header = { "画面效果" }, key = "moru") {
+                PaddedSwitchRow(
+                    separator = false,
+                    checked = blurEnabled,
+                    onCheckedChange = onBlurEnabledChanged,
+                    horizontalPadding = 16.dp,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_blur),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = colors.primary,
+                        )
+                        Text("模糊", modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
                 Row(separator = false) {
                     Column {
+                        SwitchDivider()
                         SegmentedControlHeader(
                             text = "长虹玻璃",
                             iconRes = R.drawable.ic_moruglass

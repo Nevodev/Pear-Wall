@@ -97,7 +97,6 @@ import com.kyant.shapes.RoundedRectangle
 import com.nevoit.pearwall.PearWallRuntime
 import com.nevoit.pearwall.PearWallSettings
 import com.nevoit.pearwall.R
-import com.nevoit.pearwall.media.MediaArtworkService
 import com.nevoit.pearwall.core.animation.Springs
 import com.nevoit.pearwall.core.component.BrandHeader
 import com.nevoit.pearwall.core.component.Icon
@@ -107,9 +106,11 @@ import com.nevoit.pearwall.core.component.Text
 import com.nevoit.pearwall.core.component.VGap
 import com.nevoit.pearwall.core.interaction.rememberFlingBehavior
 import com.nevoit.pearwall.core.modifier.cachedClip
+import com.nevoit.pearwall.core.modifier.nullClickable
 import com.nevoit.pearwall.core.modifier.thenIf
 import com.nevoit.pearwall.core.theme.AppTheme
 import com.nevoit.pearwall.core.theme.LocalContentColor
+import com.nevoit.pearwall.media.MediaArtworkService
 import com.nevoit.pearwall.pearmesh.PearMeshSurface
 import com.nevoit.pearwall.wallpaper.PearWallpaperService
 import kotlinx.coroutines.Dispatchers
@@ -127,6 +128,7 @@ fun SettingsPage() {
     var behavior by remember { mutableIntStateOf(settings.noArtworkBehavior) }
     var scale by remember { mutableFloatStateOf(settings.renderScale) }
     var moruStyle by remember { mutableStateOf(settings.moruStyle) }
+    var blurEnabled by remember { mutableStateOf(settings.blurEnabled) }
     var fps by remember { mutableFloatStateOf(settings.frameRate.toFloat()) }
     var randomize by remember { mutableStateOf(settings.randomizeOnScreenOn) }
     var audioVisualization by remember { mutableStateOf(settings.audioVisualizationEnabled) }
@@ -142,6 +144,7 @@ fun SettingsPage() {
         mutableIntStateOf(
             when {
                 settings.blurMultiplier < 1f -> 0
+                settings.blurMultiplier > 1.4f -> 3
                 settings.blurMultiplier > 1f -> 2
                 else -> 1
             },
@@ -403,11 +406,11 @@ fun SettingsPage() {
                         EffectOptionRow(
                             "模糊半径",
                             R.drawable.ic_blur,
-                            listOf("小", "标准", "大"),
+                            listOf("小", "标准", "大", "特大"),
                             blurSelection
                         ) {
                             blurSelection = it
-                            val multiplier = listOf(0.75f, 1f, 1.4f)[it]
+                            val multiplier = listOf(0.75f, 1f, 1.4f, 2f)[it]
                             settings.blurMultiplier = multiplier
                             state.setBlurMultiplier(multiplier)
                             PearWallRuntime.applySettings(context)
@@ -512,6 +515,7 @@ fun SettingsPage() {
                 scale = scale,
                 fps = fps,
                 moruStyle = moruStyle,
+                blurEnabled = blurEnabled,
                 portrait = portrait,
                 landscape = landscape,
                 randomize = randomize,
@@ -551,6 +555,12 @@ fun SettingsPage() {
                     moruStyle = it
                     settings.moruStyle = it
                     state.setMoruStyle(it)
+                    PearWallRuntime.applySettings(context)
+                },
+                onBlurEnabledChanged = {
+                    blurEnabled = it
+                    settings.blurEnabled = it
+                    state.setBlurEnabled(it)
                     PearWallRuntime.applySettings(context)
                 },
                 onDismissed = { isAdvancedBottomSheetVisible = false },
@@ -1217,6 +1227,7 @@ internal fun PresetSectionHeader(text: String, iconRes: Int) {
             .graphicsLayer {
                 blendMode = BlendMode.Plus
             }
+            .nullClickable()
             .fillMaxWidth()
             .height(48.dp)
             .padding(horizontal = 16.dp),

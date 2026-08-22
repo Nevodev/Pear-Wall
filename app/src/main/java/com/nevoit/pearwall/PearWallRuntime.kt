@@ -47,6 +47,7 @@ object PearWallRuntime {
             targetFrameRate = settings.frameRate,
             scrimAlpha = settings.scrimAlpha,
             blurMultiplier = settings.blurMultiplier,
+            blurEnabled = settings.blurEnabled,
             flowSpeed = settings.flowSpeed,
             audioVisualizationEnabled = settings.audioVisualizationEnabled,
             pauseFlowEnabled = settings.pauseFlowEnabled,
@@ -284,6 +285,7 @@ object PearWallRuntime {
             it.setTargetFrameRate(settings.frameRate)
             it.setScrimAlpha(settings.scrimAlpha)
             it.setBlurMultiplier(settings.blurMultiplier)
+            it.setBlurEnabled(settings.blurEnabled)
             it.setFlowSpeed(settings.flowSpeed)
             it.setAudioVisualizationEnabled(settings.audioVisualizationEnabled)
             it.setPauseFlowEnabled(settings.pauseFlowEnabled)
