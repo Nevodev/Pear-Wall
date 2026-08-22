@@ -12,6 +12,9 @@ import com.nevoit.pearwall.pearmesh.MoruStyle
 import com.nevoit.pearwall.pearmesh.PearMeshState
 import com.nevoit.pearwall.pearmesh.RendererState
 import java.io.Closeable
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.floor
 import kotlin.math.max
@@ -22,6 +25,7 @@ import kotlin.math.sin
 internal class PearMeshGlRenderer(
     context: Context,
     initialState: RendererState,
+    private val frameCaptureRequest: AtomicReference<((Bitmap) -> Unit)?>? = null,
 ) : Closeable {
     private val rotationProgram = GlProgram(
         context,
@@ -195,6 +199,32 @@ internal class PearMeshGlRenderer(
         }
 
         renderMaterial(lyricTexture, ordinaryTexture, currentLyricsMix, time, state.moruStyle)
+        frameCaptureRequest?.getAndSet(null)?.let(::captureFrame)
+    }
+
+    /** Reads the presented frame from the default framebuffer and hands it to the callback. */
+    private fun captureFrame(callback: (Bitmap) -> Unit) {
+        val width = surfaceWidth
+        val height = surfaceHeight
+        if (width <= 0 || height <= 0) return
+        val buffer = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
+        GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buffer)
+        val pixels = IntArray(width * height)
+        for (row in 0 until height) {
+            // GL rows are bottom-up; flip while decoding.
+            buffer.position((height - 1 - row) * width * 4)
+            val base = row * width
+            for (column in 0 until width) {
+                val r = buffer.get().toInt() and 0xFF
+                val g = buffer.get().toInt() and 0xFF
+                val b = buffer.get().toInt() and 0xFF
+                val a = buffer.get().toInt() and 0xFF
+                pixels[base + column] = Color.argb(a, r, g, b)
+            }
+        }
+        val bitmap = createBitmap(width, height)
+        bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+        callback(bitmap)
     }
 
     private fun renderBackdrop(

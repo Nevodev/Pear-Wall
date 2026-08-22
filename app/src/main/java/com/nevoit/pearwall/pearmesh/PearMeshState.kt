@@ -61,6 +61,8 @@ class PearMeshState(
     private val audioVisualization = AtomicReference(audioVisualizationEnabled)
     private val pauseFlow = AtomicReference(pauseFlowEnabled)
     private val moruStyleTarget = AtomicReference(moruStyle)
+    /** Pending frame capture callback; polled and cleared by the GL renderer each frame. */
+    val frameCaptureRequest = AtomicReference<((Bitmap) -> Unit)?>(null)
     private val playbackPlaying = AtomicReference(true)
     @Volatile
     private var renderInvalidatedListener: (() -> Unit)? = null
@@ -145,6 +147,10 @@ class PearMeshState(
     fun setPauseFlowEnabled(enabled: Boolean) {
         pauseFlow.set(enabled)
         renderInvalidatedListener?.invoke()
+    }
+
+    fun requestFrameCapture(callback: (Bitmap) -> Unit) {
+        frameCaptureRequest.set(callback)
     }
 
     fun setMoruStyle(style: MoruStyle) {

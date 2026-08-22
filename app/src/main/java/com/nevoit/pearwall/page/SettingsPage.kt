@@ -1,11 +1,15 @@
 package com.nevoit.pearwall.page
 
 import android.Manifest
+import android.app.Activity
 import android.app.WallpaperManager
 import android.content.ComponentName
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
+import android.provider.MediaStore
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -41,10 +46,13 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -76,6 +84,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -89,6 +98,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -113,10 +125,13 @@ import com.nevoit.pearwall.core.theme.LocalContentColor
 import com.nevoit.pearwall.media.MediaArtworkService
 import com.nevoit.pearwall.pearmesh.PearMeshSurface
 import com.nevoit.pearwall.wallpaper.PearWallpaperService
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun SettingsPage() {
@@ -241,27 +256,93 @@ fun SettingsPage() {
     }
     var isCreditsBottomSheetVisible by remember { mutableStateOf(false) }
     var isAdvancedBottomSheetVisible by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(pageCount = { 2 })
+
+    // Hide system bars once the second (fullscreen background) page settles.
+    val isOnBackgroundPage by remember {
+        derivedStateOf { pagerState.currentPage == 1 }
+    }
+    val view = LocalView.current
+    DisposableEffect(isOnBackgroundPage, view) {
+        val window = (view.context as? Activity)?.window
+        val controller = window?.let { WindowCompat.getInsetsController(window, view) }
+        if (controller != null) {
+            if (isOnBackgroundPage) {
+                controller.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose { }
+    }
+
+    fun exportCurrentFrame() {
+        scope.launch {
+            val deferred = CompletableDeferred<Bitmap?>()
+            state.requestFrameCapture { deferred.complete(it) }
+            val bitmap = withTimeoutOrNull(2_000.milliseconds) { deferred.await() } ?: return@launch
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    val values = ContentValues().apply {
+                        put(
+                            MediaStore.Images.Media.DISPLAY_NAME,
+                            "pearwall-${System.currentTimeMillis()}.png",
+                        )
+                        put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/PearWall")
+                    }
+                    val resolver = context.contentResolver
+                    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                        ?: error("MediaStore insert failed")
+                    resolver.openOutputStream(uri)?.use { output ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, EXPORT_PNG_QUALITY, output)
+                    }
+                    bitmap.recycle()
+                }.isSuccess
+            }
+            Toast.makeText(
+                context,
+                if (saved) "已导出到 Pictures/PearWall" else "导出失败",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         PearMeshSurface(state, Modifier.fillMaxSize())
         CompositionLocalProvider(
             LocalContentColor provides Color.White
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize(),
-                contentPadding = resolvedPadding,
-                flingBehavior = rememberFlingBehavior()
-            ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                if (page == 0) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = resolvedPadding,
+                        flingBehavior = rememberFlingBehavior(),
+                    ) {
                 item {
                     VGap(resolvedHeaderPadding)
                 }
                 item {
-                    BrandHeader(modifier = Modifier.graphicsLayer {
-                        alpha = 0.8f
-                        blendMode = BlendMode.Plus
-                    }, text = "pear wall")
+                    BrandHeader(
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { exportCurrentFrame() }
+                            .graphicsLayer {
+                                alpha = 0.8f
+                                blendMode = BlendMode.Plus
+                            },
+                        text = "pear wall"
+                    )
                 }
                 if (!isCurrentWallpaper) {
                     item {
@@ -504,6 +585,8 @@ fun SettingsPage() {
                 }
                 item {
                     NavigationBarSpacer()
+                }
+                    }
                 }
             }
         }
@@ -1371,3 +1454,5 @@ private fun LazyListState.behindLyricsProgress(
     }
     return (1f - scrollOffsetPx / distancePx.coerceAtLeast(1f)).coerceIn(0f, 1f)
 }
+
+private const val EXPORT_PNG_QUALITY = 95

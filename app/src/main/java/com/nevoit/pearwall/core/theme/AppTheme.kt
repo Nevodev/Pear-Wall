@@ -33,7 +33,7 @@ object AppTheme {
         typography: AppTypography = DefaultAppTypography,
         content: @Composable () -> Unit,
     ) {
-        ConfigureSystemBars(darkTheme)
+        ConfigureSystemBars()
 
         CompositionLocalProvider(
             LocalAppColors provides colors,
@@ -49,15 +49,16 @@ object AppTheme {
 private val LocalIsDark = staticCompositionLocalOf { false }
 
 @Composable
-private fun ConfigureSystemBars(darkTheme: Boolean) {
+private fun ConfigureSystemBars() {
     val view = LocalView.current
     if (view.isInEditMode) return
 
     SideEffect {
         val activity = view.context as? Activity ?: return@SideEffect
         WindowCompat.getInsetsController(activity.window, view).apply {
-            isAppearanceLightStatusBars = !darkTheme
-            isAppearanceLightNavigationBars = !darkTheme
+            // The app draws over a colorful wallpaper backdrop; keep bar icons white.
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
         }
     }
 }

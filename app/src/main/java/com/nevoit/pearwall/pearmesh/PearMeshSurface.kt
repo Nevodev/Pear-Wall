@@ -69,6 +69,7 @@ fun PearMeshSurface(
                     stateProvider = { latestState.value.snapshot() },
                     initiallyRenderingEnabled = renderingEnabled.get(),
                     statsListener = state::setRenderDebugInfo,
+                    frameCaptureRequest = state.frameCaptureRequest,
                 )
                 renderThread.getAndSet(newRenderThread)?.stopAndJoin()
 

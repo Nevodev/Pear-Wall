@@ -1,6 +1,7 @@
 package com.nevoit.pearwall.pearmesh.gl
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
@@ -12,6 +13,7 @@ import android.util.Log
 import android.view.Surface
 import com.nevoit.pearwall.pearmesh.RendererState
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
@@ -27,6 +29,7 @@ class EglRenderThread(
     private val onRenderingPaused: () -> Unit = {},
     private val maxContinuousRenderMillis: Long? = null,
     initiallyRenderingEnabled: Boolean = true,
+    private val frameCaptureRequest: AtomicReference<((Bitmap) -> Unit)?>? = null,
 ) {
     private val rendererId = nextRendererId.incrementAndGet()
     private val running = AtomicBoolean(false)
@@ -140,7 +143,7 @@ class EglRenderThread(
             ) { "eglMakeCurrent failed: 0x${EGL14.eglGetError().toString(16)}" }
             EGL14.eglSwapInterval(display, 1)
 
-            renderer = PearMeshGlRenderer(context, stateProvider())
+            renderer = PearMeshGlRenderer(context, stateProvider(), frameCaptureRequest)
             var nextFrame = System.nanoTime()
             var previousFrameStart = nextFrame
             var animationNanos = 0L
