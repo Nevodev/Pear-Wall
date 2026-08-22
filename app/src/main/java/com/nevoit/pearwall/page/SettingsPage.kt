@@ -11,6 +11,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.Settings
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -272,11 +273,14 @@ fun SettingsPage() {
                 controller.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 controller.hide(WindowInsetsCompat.Type.systemBars())
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             } else {
                 controller.show(WindowInsetsCompat.Type.systemBars())
             }
         }
-        onDispose { }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     fun exportCurrentFrame() {
