@@ -8,6 +8,7 @@ import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.Settings
@@ -20,9 +21,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -49,19 +47,17 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -69,18 +65,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -88,13 +79,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
@@ -331,265 +316,265 @@ fun SettingsPage() {
                         contentPadding = resolvedPadding,
                         flingBehavior = rememberFlingBehavior(),
                     ) {
-                item {
-                    VGap(resolvedHeaderPadding)
-                }
-                item {
-                    BrandHeader(
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { exportCurrentFrame() }
-                            .graphicsLayer {
-                                alpha = 0.8f
-                                blendMode = BlendMode.Plus
-                            },
-                        text = "pear wall"
-                    )
-                }
-                if (!isCurrentWallpaper) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp)
-                        ) {
-                            PrimaryButton(
-                                modifier = Modifier.weight(1f),
-                                text = "设为动态壁纸",
-                                onClick = { openWallpaperPicker(context) },
+                        item {
+                            VGap(resolvedHeaderPadding)
+                        }
+                        item {
+                            BrandHeader(
+                                modifier = Modifier
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                    ) { exportCurrentFrame() }
+                                    .graphicsLayer {
+                                        alpha = 0.8f
+                                        blendMode = BlendMode.Plus
+                                    },
+                                text = "pear wall"
                             )
-//                            HGap()
-//                            PrimaryButton(
-//                                modifier = Modifier.weight(1f),
-//                                text = "壁纸选择器",
-//                                onClick = { openWallpaperChooser(context) },
-//                            )
                         }
-                        VGap()
-                        VGap()
-                    }
-                }
-                item {
-                    SettingsCard("权限") {
-                        ItemRow(
-                            iconRes = R.drawable.ic_bell_badge,
-                            title = "通知使用权",
-                            subtitle = if (hasNotificationAccess) {
-                                "已获取"
-                            } else {
-                                "用于读取正在播放的媒体封面"
-                            },
-                            onClick = { openNotificationListenerSettings(context) },
-                        )
-                        SwitchDivider()
-                        ItemRow(
-                            iconRes = R.drawable.ic_microphone,
-                            title = "麦克风权限",
-                            subtitle = if (hasAudioPermission) {
-                                "已获取"
-                            } else {
-                                "用于捕获系统输出音频"
-                            },
-                            onClick = { requestAudioPermission() },
-                        )
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard("未获取到封面时") {
-                        Choice(
-                            text = "继续使用上一张封面",
-                            iconRes = R.drawable.ic_history,
-                            selected = behavior == PearWallSettings.KEEP_LAST,
-                        ) {
-                            behavior = PearWallSettings.KEEP_LAST
-                            PearWallRuntime.setNoArtworkBehavior(context, behavior)
+                        if (!isCurrentWallpaper) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                ) {
+                                    PrimaryButton(
+                                        modifier = Modifier.weight(1f),
+                                        text = "设为动态壁纸",
+                                        onClick = { openWallpaperPicker(context) },
+                                    )
+                                }
+                                VGap()
+                                VGap()
+                            }
                         }
-                        NormalDivider()
-                        Choice(
-                            text = "使用自选图片",
-                            iconRes = R.drawable.ic_photo,
-                            selected = behavior == PearWallSettings.CUSTOM_IMAGE,
-                        ) {
-                            behavior = PearWallSettings.CUSTOM_IMAGE
-                            PearWallRuntime.setNoArtworkBehavior(context, behavior)
-                        }
-                        if (behavior == PearWallSettings.CUSTOM_IMAGE) {
-                            NormalDivider()
-                            ImagePickerRow {
-                                imagePicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        item {
+                            SettingsCard("权限") {
+                                ItemRow(
+                                    iconRes = R.drawable.ic_bell_badge,
+                                    title = "通知使用权",
+                                    subtitle = if (hasNotificationAccess) {
+                                        "已获取"
+                                    } else {
+                                        "用于读取正在播放的媒体封面"
+                                    },
+                                    onClick = { openNotificationListenerSettings(context) },
+                                )
+                                SwitchDivider()
+                                ItemRow(
+                                    iconRes = R.drawable.ic_microphone,
+                                    title = "麦克风权限",
+                                    subtitle = if (hasAudioPermission) {
+                                        "已获取"
+                                    } else {
+                                        "用于捕获系统输出音频"
+                                    },
+                                    onClick = { requestAudioPermission() },
                                 )
                             }
+                            VGap()
+                            VGap()
                         }
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard("暂停时") {
-                        if (behavior == PearWallSettings.CUSTOM_IMAGE) {
-                            ToggleRow(
-                                "使用自选图片",
-                                "开启后，播放暂停时显示“未获取到封面时”设置的自选图片",
-                                iconRes = R.drawable.ic_photo,
-                                checked = pauseUsesNoArtworkBehavior,
-                            ) { enabled ->
-                                pauseUsesNoArtworkBehavior = enabled
-                                PearWallRuntime.setPauseUsesNoArtworkBehavior(context, enabled)
-                            }
-                            SwitchDivider()
-                        }
-                        ToggleRow(
-                            "暂停流动效果",
-                            "暂停播放后冻结壁纸动画，恢复播放时继续",
-                            iconRes = R.drawable.ic_play,
-                            checked = pauseFlowEnabled,
-                        ) { enabled ->
-                            pauseFlowEnabled = enabled
-                            settings.pauseFlowEnabled = enabled
-                            state.setPauseFlowEnabled(enabled)
-                        }
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard("画面效果") {
-                        ToggleRow(
-                            "开启音频可视化",
-                            "可能会略微增加功耗",
-                            iconRes = R.drawable.ic_waveform,
-                            checked = audioVisualization
-                        ) { enabled ->
-                            if (enabled && !hasAudioPermission) {
-                                requestAudioPermission()
-                                audioVisualization = true
-                                PearWallRuntime.setAudioVisualizationEnabled(context, true)
-                            } else {
-                                audioVisualization = enabled
-                                PearWallRuntime.setAudioVisualizationEnabled(context, enabled)
-                            }
-                        }
-                        SwitchDivider()
-                        EffectOptionRow(
-                            "压暗",
-                            R.drawable.ic_scrim,
-                            listOf("轻微", "标准"),
-                            scrimSelection
-                        ) {
-                            scrimSelection = it
-                            val alpha = listOf(0.25f, 0.4f)[it]
-                            settings.scrimAlpha = alpha
-                            state.setScrimAlpha(alpha)
-                            PearWallRuntime.applySettings(context)
-                        }
-                        TwoSideDivider()
-                        EffectOptionRow(
-                            "模糊半径",
-                            R.drawable.ic_blur,
-                            listOf("小", "标准", "大", "特大"),
-                            blurSelection
-                        ) {
-                            blurSelection = it
-                            val multiplier = listOf(0.75f, 1f, 1.4f, 2f)[it]
-                            settings.blurMultiplier = multiplier
-                            state.setBlurMultiplier(multiplier)
-                            PearWallRuntime.applySettings(context)
-                        }
-                        TwoSideDivider()
-                        EffectOptionRow(
-                            "流动速度",
-                            R.drawable.ic_speed,
-                            listOf("标准", "快速"),
-                            flowSpeedSelection
-                        ) {
-                            flowSpeedSelection = it
-                            settings.flowSpeed = it
-                            state.setFlowSpeed(it)
-                            PearWallRuntime.applySettings(context)
-                        }
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard {
-                        ItemRow(
-                            iconRes = R.drawable.ic_engine,
-                            title = "高级",
-                            onClick = { isAdvancedBottomSheetVisible = true },
-                        )
-                    }
-                    VGap()
-                    VGap()
-                }
-                item {
-                    SettingsCard("关于") {
-                        ItemRow(
-                            iconRes = R.drawable.ic_pet_paw,
-                            title = "Nevoit",
-                            subtitle = "主要开发者",
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(
-                                            Intent.ACTION_VIEW,
-                                            "https://github.com/Nevodev".toUri(),
-                                        )
-                                    )
+                        item {
+                            SettingsCard("未获取到封面时") {
+                                Choice(
+                                    text = "继续使用上一张封面",
+                                    iconRes = R.drawable.ic_history,
+                                    selected = behavior == PearWallSettings.KEEP_LAST,
+                                ) {
+                                    behavior = PearWallSettings.KEEP_LAST
+                                    PearWallRuntime.setNoArtworkBehavior(context, behavior)
                                 }
-                            },
-                        )
-                        NormalDivider()
-                        ItemRow(
-                            iconRes = R.drawable.ic_pet_paw,
-                            title = "WXRIW",
-                            subtitle = "特别感谢",
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(
-                                            Intent.ACTION_VIEW,
-                                            "https://github.com/WXRIW".toUri(),
-                                        )
-                                    )
+                                NormalDivider()
+                                Choice(
+                                    text = "使用自选图片",
+                                    iconRes = R.drawable.ic_photo,
+                                    selected = behavior == PearWallSettings.CUSTOM_IMAGE,
+                                ) {
+                                    behavior = PearWallSettings.CUSTOM_IMAGE
+                                    PearWallRuntime.setNoArtworkBehavior(context, behavior)
                                 }
-                            },
-                        )
-                        NormalDivider()
-                        ItemRow(
-                            iconRes = R.drawable.ic_pet_paw,
-                            title = "Raspberry Monster",
-                            subtitle = "特别感谢",
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(
-                                            Intent.ACTION_VIEW,
-                                            "https://github.com/raspberry-monster".toUri(),
+                                if (behavior == PearWallSettings.CUSTOM_IMAGE) {
+                                    NormalDivider()
+                                    ImagePickerRow {
+                                        imagePicker.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                                         )
-                                    )
+                                    }
                                 }
-                            },
-                        )
-                        NormalDivider()
-                        ItemRow(
-                            iconRes = R.drawable.ic_info,
-                            title = "致谢",
-                            onClick = {
-                                isCreditsBottomSheetVisible = true
                             }
-                        )
-                    }
-                    VGap()
-                }
-                item {
-                    NavigationBarSpacer()
-                }
+                            VGap()
+                            VGap()
+                        }
+                        item {
+                            SettingsCard("暂停时") {
+                                if (behavior == PearWallSettings.CUSTOM_IMAGE) {
+                                    ToggleRow(
+                                        "使用自选图片",
+                                        "开启后，播放暂停时显示“未获取到封面时”设置的自选图片",
+                                        iconRes = R.drawable.ic_photo,
+                                        checked = pauseUsesNoArtworkBehavior,
+                                    ) { enabled ->
+                                        pauseUsesNoArtworkBehavior = enabled
+                                        PearWallRuntime.setPauseUsesNoArtworkBehavior(
+                                            context,
+                                            enabled
+                                        )
+                                    }
+                                    SwitchDivider()
+                                }
+                                ToggleRow(
+                                    "暂停流动效果",
+                                    "暂停播放后冻结壁纸动画，恢复播放时继续",
+                                    iconRes = R.drawable.ic_play,
+                                    checked = pauseFlowEnabled,
+                                ) { enabled ->
+                                    pauseFlowEnabled = enabled
+                                    settings.pauseFlowEnabled = enabled
+                                    state.setPauseFlowEnabled(enabled)
+                                }
+                            }
+                            VGap()
+                            VGap()
+                        }
+                        item {
+                            SettingsCard("画面效果") {
+                                ToggleRow(
+                                    "开启音频可视化",
+                                    "可能会略微增加功耗",
+                                    iconRes = R.drawable.ic_waveform,
+                                    checked = audioVisualization
+                                ) { enabled ->
+                                    if (enabled && !hasAudioPermission) {
+                                        requestAudioPermission()
+                                        audioVisualization = true
+                                        PearWallRuntime.setAudioVisualizationEnabled(context, true)
+                                    } else {
+                                        audioVisualization = enabled
+                                        PearWallRuntime.setAudioVisualizationEnabled(
+                                            context,
+                                            enabled
+                                        )
+                                    }
+                                }
+                                SwitchDivider()
+                                EffectOptionRow(
+                                    "压暗",
+                                    R.drawable.ic_scrim,
+                                    listOf("轻微", "标准"),
+                                    scrimSelection
+                                ) {
+                                    scrimSelection = it
+                                    val alpha = listOf(0.25f, 0.4f)[it]
+                                    settings.scrimAlpha = alpha
+                                    state.setScrimAlpha(alpha)
+                                    PearWallRuntime.applySettings(context)
+                                }
+                                TwoSideDivider()
+                                EffectOptionRow(
+                                    "模糊半径",
+                                    R.drawable.ic_blur,
+                                    listOf("小", "标准", "大", "特大"),
+                                    blurSelection
+                                ) {
+                                    blurSelection = it
+                                    val multiplier = listOf(0.75f, 1f, 1.4f, 2f)[it]
+                                    settings.blurMultiplier = multiplier
+                                    state.setBlurMultiplier(multiplier)
+                                    PearWallRuntime.applySettings(context)
+                                }
+                                TwoSideDivider()
+                                EffectOptionRow(
+                                    "流动速度",
+                                    R.drawable.ic_speed,
+                                    listOf("标准", "快速"),
+                                    flowSpeedSelection
+                                ) {
+                                    flowSpeedSelection = it
+                                    settings.flowSpeed = it
+                                    state.setFlowSpeed(it)
+                                    PearWallRuntime.applySettings(context)
+                                }
+                            }
+                            VGap()
+                            VGap()
+                        }
+                        item {
+                            SettingsCard {
+                                ItemRow(
+                                    iconRes = R.drawable.ic_engine,
+                                    title = "高级",
+                                    onClick = { isAdvancedBottomSheetVisible = true },
+                                )
+                            }
+                            VGap()
+                            VGap()
+                        }
+                        item {
+                            SettingsCard("关于") {
+                                ItemRow(
+                                    iconRes = R.drawable.ic_pet_paw,
+                                    title = "Nevoit",
+                                    subtitle = "主要开发者",
+                                    onClick = {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(
+                                                    Intent.ACTION_VIEW,
+                                                    "https://github.com/Nevodev".toUri(),
+                                                )
+                                            )
+                                        }
+                                    },
+                                )
+                                NormalDivider()
+                                ItemRow(
+                                    iconRes = R.drawable.ic_pet_paw,
+                                    title = "WXRIW",
+                                    subtitle = "特别感谢",
+                                    onClick = {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(
+                                                    Intent.ACTION_VIEW,
+                                                    "https://github.com/WXRIW".toUri(),
+                                                )
+                                            )
+                                        }
+                                    },
+                                )
+                                NormalDivider()
+                                ItemRow(
+                                    iconRes = R.drawable.ic_pet_paw,
+                                    title = "Raspberry Monster",
+                                    subtitle = "特别感谢",
+                                    onClick = {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(
+                                                    Intent.ACTION_VIEW,
+                                                    "https://github.com/raspberry-monster".toUri(),
+                                                )
+                                            )
+                                        }
+                                    },
+                                )
+                                NormalDivider()
+                                ItemRow(
+                                    iconRes = R.drawable.ic_info,
+                                    title = "致谢",
+                                    onClick = {
+                                        isCreditsBottomSheetVisible = true
+                                    }
+                                )
+                            }
+                            VGap()
+                        }
+                        item {
+                            NavigationBarSpacer()
+                        }
                     }
                 }
             }
@@ -958,11 +943,11 @@ private fun ItemRow(
 private fun decodeArtwork(
     context: android.content.Context,
     uri: android.net.Uri
-): android.graphics.Bitmap? {
+): Bitmap? {
     val resolver = context.contentResolver
-    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     resolver.openInputStream(uri)?.use { stream ->
-        android.graphics.BitmapFactory.decodeStream(stream, null, bounds)
+        BitmapFactory.decodeStream(stream, null, bounds)
     }
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
@@ -973,12 +958,12 @@ private fun decodeArtwork(
     ) {
         sampleSize *= 2
     }
-    val options = android.graphics.BitmapFactory.Options().apply {
+    val options = BitmapFactory.Options().apply {
         inSampleSize = sampleSize
-        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+        inPreferredConfig = Bitmap.Config.ARGB_8888
     }
     return resolver.openInputStream(uri)?.use { stream ->
-        android.graphics.BitmapFactory.decodeStream(stream, null, options)
+        BitmapFactory.decodeStream(stream, null, options)
     }
 }
 
@@ -1035,206 +1020,6 @@ private fun SwitchDivider() {
             .height(1.dp)
             .fillMaxWidth()
             .background(Color.White.copy(alpha = 0.1f)),
-    )
-}
-
-@Composable
-private fun SliderRow(
-    label: String,
-    valueLabel: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int = 0,
-    extraBottomPadding: Dp = 0.dp,
-    onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 16.dp)
-            .padding(bottom = extraBottomPadding),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    blendMode = BlendMode.Plus
-                },
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = label,
-                style = AppTheme.typography.subHeadline,
-                color = Color.White.copy(.8f),
-            )
-            Text(
-                text = valueLabel,
-                style = AppTheme.typography.subHeadline,
-                color = Color.White.copy(alpha = 0.5f),
-            )
-        }
-        PearSlider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps,
-            onValueChangeFinished = onValueChangeFinished,
-        )
-    }
-}
-
-@Composable
-private fun PearSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int = 0,
-    onValueChangeFinished: () -> Unit,
-) {
-    val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
-    val fraction = if (valueRange.endInclusive == valueRange.start) 0f else {
-        (coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start)
-    }
-    val currentValue by rememberUpdatedState(coercedValue)
-    Spacer(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .semantics {
-                progressBarRangeInfo = ProgressBarRangeInfo(
-                    current = coercedValue,
-                    range = valueRange,
-                    steps = steps,
-                )
-                setProgress { targetValue ->
-                    onValueChange(snapSliderValue(targetValue, valueRange, steps))
-                    onValueChangeFinished()
-                    true
-                }
-            }
-            .pointerInput(valueRange, steps) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val trackRadius = 2.dp.toPx()
-                    val trackEnd = (size.width.toFloat() - trackRadius).coerceAtLeast(trackRadius)
-                    val usableWidth = (trackEnd - trackRadius).coerceAtLeast(1f)
-                    val initialFraction = if (valueRange.endInclusive == valueRange.start) 0f else {
-                        (currentValue - valueRange.start) /
-                                (valueRange.endInclusive - valueRange.start)
-                    }
-                    val thumbCenter = Offset(
-                        x = trackRadius + usableWidth * initialFraction,
-                        y = size.height / 2f,
-                    )
-                    val thumbRadius = 11.dp.toPx()
-                    if ((down.position - thumbCenter).getDistance() > thumbRadius) {
-                        return@awaitEachGesture
-                    }
-
-                    down.consume()
-                    val initialX = down.position.x
-                    do {
-                        val change = awaitPointerEvent().changes
-                            .firstOrNull { it.id == down.id } ?: break
-                        if (change.positionChanged()) {
-                            val positionFraction = (
-                                    initialFraction +
-                                            (change.position.x - initialX) / usableWidth
-                                    ).coerceIn(0f, 1f)
-                            val rawValue = valueRange.start +
-                                    positionFraction *
-                                    (valueRange.endInclusive - valueRange.start)
-                            onValueChange(snapSliderValue(rawValue, valueRange, steps))
-                            change.consume()
-                        }
-                    } while (change.pressed)
-                    onValueChangeFinished()
-                }
-            }
-            .drawWithCache {
-                val shadowContext = obtainShadowContext()
-                val nearShadow = shadowContext.createDropShadowPainter(
-                    CircleShape,
-                    Shadow(
-                        radius = 4.dp,
-                        color = Color.Black,
-                        offset = DpOffset(0.dp, 0.5.dp),
-                        alpha = 0.12f,
-                    ),
-                )
-                val farShadow = shadowContext.createDropShadowPainter(
-                    CircleShape,
-                    Shadow(
-                        radius = 13.dp,
-                        color = Color.Black,
-                        offset = DpOffset(0.dp, 6.dp),
-                        alpha = 0.12f,
-                    ),
-                )
-                val trackHeight = 4.dp.toPx()
-                val trackRadius = trackHeight / 2f
-                val start = Offset(trackRadius, size.height / 2f)
-                val end = Offset(size.width - trackRadius, size.height / 2f)
-                val thumb = Offset(
-                    x = start.x + (end.x - start.x) * fraction,
-                    y = start.y,
-                )
-                val trackTop = start.y - trackRadius
-                val trackCornerRadius = CornerRadius(trackRadius)
-                val thumbDiameter = 22.dp.toPx()
-                val thumbTopLeft = Offset(
-                    x = thumb.x - thumbDiameter / 2f,
-                    y = thumb.y - thumbDiameter / 2f,
-                )
-                val thumbSize = Size(thumbDiameter, thumbDiameter)
-
-                onDrawBehind {
-                    drawRoundRect(
-                        color = Color.White.copy(alpha = 0.2f),
-                        topLeft = Offset(0f, trackTop),
-                        size = Size(size.width, trackHeight),
-                        cornerRadius = trackCornerRadius,
-                        blendMode = BlendMode.Plus
-                    )
-                    if (thumb.x > 0f) {
-                        drawRoundRect(
-                            color = Color.White.copy(alpha = 0.8f),
-                            topLeft = Offset(0f, trackTop),
-                            size = Size(thumb.x, trackHeight),
-                            cornerRadius = trackCornerRadius,
-                            blendMode = BlendMode.Plus
-                        )
-                    }
-                    if (steps > 0) {
-                        val tickCount = steps + 2
-                        val tickY = start.y + 20.dp.toPx()
-                        repeat(tickCount) { index ->
-                            drawCircle(
-                                color = Color.White.copy(alpha = 0.2f),
-                                radius = 2.dp.toPx(),
-                                center = Offset(
-                                    x = start.x +
-                                            (end.x - start.x) * index / (tickCount - 1),
-                                    y = tickY,
-                                ),
-                                blendMode = BlendMode.Plus
-                            )
-                        }
-                    }
-                    translate(thumbTopLeft.x, thumbTopLeft.y) {
-                        with(farShadow) { draw(thumbSize) }
-                        with(nearShadow) { draw(thumbSize) }
-                    }
-                    drawCircle(
-                        color = Color.White,
-                        radius = thumbDiameter / 2f,
-                        center = thumb,
-                    )
-                }
-            },
     )
 }
 
@@ -1347,11 +1132,6 @@ private fun EffectOptionRow(
         PresetSectionHeader(label, iconRes)
         PresetSegmentedControl(options, selected, select)
     }
-}
-
-@Composable
-internal fun PresetSegmentedControl(count: Int, selected: Int, select: (Int) -> Unit) {
-    PresetSegmentedControl(List(count) { "${it + 1}" }, selected, select)
 }
 
 @Composable
