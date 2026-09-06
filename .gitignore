@@ -29,3 +29,4 @@ app/build/generated/rust-jniLibs/
 /nul
 
 .tmp
+/.idea/
