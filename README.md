@@ -9,6 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Nevodev/Pear-Wall/releases/download/v1.0/pear-wall-1.0.APK">
+    <img src="https://img.shields.io/badge/Download-v1.0 APK-blue?style=for-the-badge" alt="Download APK" />
+  </a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white" alt="Android 10+" />
   <img src="https://img.shields.io/badge/OpenGL_ES-3.0-5586A4?logo=opengl&logoColor=white" alt="OpenGL ES 3.0" />
   <img src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin" />
