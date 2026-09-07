@@ -31,7 +31,7 @@
 
 ## Overview
 
-Pear Wall transforms the album artwork of currently playing media into an Apple Music-inspired animated grid wallpaper. It supports real-time audio-driven animations, providing dynamic visual feedback to bass and rhythm.
+Pear Wall transforms the album artwork of currently playing media into an Apple Music-inspired animated mesh gradient wallpaper. It supports real-time audio-driven animations, providing dynamic visual feedback to bass and rhythm.
 
 ## Features
 
