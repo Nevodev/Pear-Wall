@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -107,8 +108,8 @@ fun CreditsBottomSheet(
                     color = Slate500,
                     backgroundColor = AppTheme.colors.elevatedCardBackground,
                     icon = painterResource(R.drawable.ic_twotone_info),
-                    title = "致谢",
-                    info = "Pear Wall能够顺利运行，离不开这些优秀的开源库。"
+                    title = stringResource(R.string.credits),
+                    info = stringResource(R.string.credits_desc)
                 )
             }
             libraries?.let { libs ->
@@ -233,7 +234,7 @@ fun ConfigInfoHeader(
 
 @Composable
 fun TopBar(
-    title: String = "致谢",
+    title: String = stringResource(R.string.credits),
     backdrop: LayerBackdrop,
     visible: Boolean,
     onClose: () -> Unit
@@ -286,7 +287,7 @@ return mix(content.eval(coord) * blurAlpha, tint * tintAlpha, tintIntensity);
         leading = {
             Action(
                 icon = painterResource(id = R.drawable.ic_forward_nav),
-                contentDescription = "返回",
+                contentDescription = stringResource(R.string.back),
                 onClick = onClose
             )
         },

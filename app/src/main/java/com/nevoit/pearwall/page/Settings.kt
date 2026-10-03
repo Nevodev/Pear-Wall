@@ -79,7 +79,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
@@ -268,6 +270,9 @@ fun SettingsPage() {
         }
     }
 
+    val exportedText = stringResource(R.string.exported_to) + "Pictures/PearWall"
+    val exportFailedText = stringResource(R.string.export_failed)
+
     fun exportCurrentFrame() {
         scope.launch {
             val deferred = CompletableDeferred<Bitmap?>()
@@ -294,7 +299,7 @@ fun SettingsPage() {
             }
             Toast.makeText(
                 context,
-                if (saved) "已导出到 Pictures/PearWall" else "导出失败",
+                if (saved) exportedText else exportFailedText,
                 Toast.LENGTH_SHORT,
             ).show()
         }
@@ -342,7 +347,7 @@ fun SettingsPage() {
                                 ) {
                                     PrimaryButton(
                                         modifier = Modifier.weight(1f),
-                                        text = "设为动态壁纸",
+                                        text = stringResource(R.string.set_as_live_wallpaper),
                                         onClick = { openWallpaperPicker(context) },
                                     )
                                 }
@@ -351,25 +356,25 @@ fun SettingsPage() {
                             }
                         }
                         item {
-                            SettingsCard("权限") {
+                            SettingsCard(stringResource(R.string.permissions)) {
                                 ItemRow(
                                     iconRes = R.drawable.ic_bell_badge,
-                                    title = "通知使用权",
+                                    title = stringResource(R.string.notification_access),
                                     subtitle = if (hasNotificationAccess) {
-                                        "已获取"
+                                        stringResource(R.string.granted)
                                     } else {
-                                        "用于读取正在播放的媒体封面"
+                                        stringResource(R.string.notification_access_desc)
                                     },
                                     onClick = { openNotificationListenerSettings(context) },
                                 )
                                 SwitchDivider()
                                 ItemRow(
                                     iconRes = R.drawable.ic_microphone,
-                                    title = "麦克风权限",
+                                    title = stringResource(R.string.microphone),
                                     subtitle = if (hasAudioPermission) {
-                                        "已获取"
+                                        stringResource(R.string.granted)
                                     } else {
-                                        "用于捕获系统输出音频"
+                                        stringResource(R.string.microphone_desc)
                                     },
                                     onClick = { requestAudioPermission() },
                                 )
@@ -378,9 +383,9 @@ fun SettingsPage() {
                             VGap()
                         }
                         item {
-                            SettingsCard("未获取到封面时") {
+                            SettingsCard(stringResource(R.string.artwork_fallback)) {
                                 Choice(
-                                    text = "继续使用上一张封面",
+                                    text = stringResource(R.string.artwork_fallback_keep),
                                     iconRes = R.drawable.ic_history,
                                     selected = behavior == PearWallSettings.KEEP_LAST,
                                 ) {
@@ -389,7 +394,7 @@ fun SettingsPage() {
                                 }
                                 NormalDivider()
                                 Choice(
-                                    text = "使用自选图片",
+                                    text = stringResource(R.string.artwork_fallback_custom),
                                     iconRes = R.drawable.ic_photo,
                                     selected = behavior == PearWallSettings.CUSTOM_IMAGE,
                                 ) {
@@ -409,11 +414,11 @@ fun SettingsPage() {
                             VGap()
                         }
                         item {
-                            SettingsCard("暂停时") {
+                            SettingsCard(stringResource(R.string.pause_section)) {
                                 if (behavior == PearWallSettings.CUSTOM_IMAGE) {
                                     ToggleRow(
-                                        "使用自选图片",
-                                        "开启后，播放暂停时显示“未获取到封面时”设置的自选图片",
+                                        stringResource(R.string.pause_custom_artwork),
+                                        stringResource(R.string.pause_custom_artwork_desc),
                                         iconRes = R.drawable.ic_photo,
                                         checked = pauseUsesNoArtworkBehavior,
                                     ) { enabled ->
@@ -426,8 +431,8 @@ fun SettingsPage() {
                                     SwitchDivider()
                                 }
                                 ToggleRow(
-                                    "暂停流动效果",
-                                    "暂停播放后冻结壁纸动画，恢复播放时继续",
+                                    stringResource(R.string.pause_animation),
+                                    stringResource(R.string.pause_animation_desc),
                                     iconRes = R.drawable.ic_play,
                                     checked = pauseFlowEnabled,
                                 ) { enabled ->
@@ -440,10 +445,10 @@ fun SettingsPage() {
                             VGap()
                         }
                         item {
-                            SettingsCard("画面效果") {
+                            SettingsCard(stringResource(R.string.visual_effects)) {
                                 ToggleRow(
-                                    "开启音频可视化",
-                                    "可能会略微增加功耗",
+                                    stringResource(R.string.audio_visualization),
+                                    stringResource(R.string.audio_visualization_desc),
                                     iconRes = R.drawable.ic_waveform,
                                     checked = audioVisualization
                                 ) { enabled ->
@@ -461,9 +466,12 @@ fun SettingsPage() {
                                 }
                                 SwitchDivider()
                                 EffectOptionRow(
-                                    "压暗",
+                                    stringResource(R.string.scrim),
                                     R.drawable.ic_scrim,
-                                    listOf("轻微", "标准"),
+                                    listOf(
+                                        stringResource(R.string.scrim_light),
+                                        stringResource(R.string.scrim_standard),
+                                    ),
                                     scrimSelection
                                 ) {
                                     scrimSelection = it
@@ -474,9 +482,14 @@ fun SettingsPage() {
                                 }
                                 TwoSideDivider()
                                 EffectOptionRow(
-                                    "模糊半径",
+                                    stringResource(R.string.blur_radius),
                                     R.drawable.ic_blur,
-                                    listOf("小", "标准", "大", "特大"),
+                                    listOf(
+                                        stringResource(R.string.blur_small),
+                                        stringResource(R.string.blur_medium),
+                                        stringResource(R.string.blur_large),
+                                        stringResource(R.string.blur_extra_large),
+                                    ),
                                     blurSelection
                                 ) {
                                     blurSelection = it
@@ -487,9 +500,12 @@ fun SettingsPage() {
                                 }
                                 TwoSideDivider()
                                 EffectOptionRow(
-                                    "流动速度",
+                                    stringResource(R.string.flow_speed),
                                     R.drawable.ic_speed,
-                                    listOf("标准", "快速"),
+                                    listOf(
+                                        stringResource(R.string.flow_standard),
+                                        stringResource(R.string.flow_fast),
+                                    ),
                                     flowSpeedSelection
                                 ) {
                                     flowSpeedSelection = it
@@ -505,7 +521,7 @@ fun SettingsPage() {
                             SettingsCard {
                                 ItemRow(
                                     iconRes = R.drawable.ic_engine,
-                                    title = "高级",
+                                    title = stringResource(R.string.advanced),
                                     onClick = { isAdvancedBottomSheetVisible = true },
                                 )
                             }
@@ -513,11 +529,11 @@ fun SettingsPage() {
                             VGap()
                         }
                         item {
-                            SettingsCard("关于") {
+                            SettingsCard(stringResource(R.string.about)) {
                                 ItemRow(
                                     iconRes = R.drawable.ic_pet_paw,
                                     title = "Nevoit",
-                                    subtitle = "主要开发者",
+                                    subtitle = stringResource(R.string.role_lead_developer),
                                     onClick = {
                                         runCatching {
                                             context.startActivity(
@@ -533,7 +549,7 @@ fun SettingsPage() {
                                 ItemRow(
                                     iconRes = R.drawable.ic_pet_paw,
                                     title = "WXRIW",
-                                    subtitle = "特别感谢",
+                                    subtitle = stringResource(R.string.role_special_thanks),
                                     onClick = {
                                         runCatching {
                                             context.startActivity(
@@ -549,7 +565,7 @@ fun SettingsPage() {
                                 ItemRow(
                                     iconRes = R.drawable.ic_pet_paw,
                                     title = "Raspberry Monster",
-                                    subtitle = "特别感谢",
+                                    subtitle = stringResource(R.string.role_special_thanks),
                                     onClick = {
                                         runCatching {
                                             context.startActivity(
@@ -564,7 +580,7 @@ fun SettingsPage() {
                                 NormalDivider()
                                 ItemRow(
                                     iconRes = R.drawable.ic_info,
-                                    title = "致谢",
+                                    title = stringResource(R.string.credits),
                                     onClick = {
                                         isCreditsBottomSheetVisible = true
                                     }
@@ -659,7 +675,7 @@ private fun openNotificationListenerSettings(context: android.content.Context) {
     runCatching {
         context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }.onFailure {
-        Toast.makeText(context, "无法打开通知使用权设置", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, R.string.notification_settings_error, Toast.LENGTH_LONG).show()
     }
 }
 
@@ -737,7 +753,7 @@ private fun openWallpaperChooser(context: android.content.Context) {
         context.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))
     }.onFailure { error ->
         android.util.Log.w("PearWall", "Live wallpaper chooser failed", error)
-        Toast.makeText(context, "系统不支持动态壁纸选择器", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, R.string.wallpaper_chooser_error, Toast.LENGTH_LONG).show()
     }
 }
 
@@ -770,7 +786,7 @@ private fun openXiaomiPermissionEditor(context: android.content.Context) {
             .edit {
                 putBoolean("xiaomi_permission_page_shown", true)
             }
-        Toast.makeText(context, "请开启“动态壁纸服务”，返回后再次点击设置", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, R.string.xiaomi_permission_hint, Toast.LENGTH_LONG).show()
     } else {
         openWallpaperPickerWithoutXiaomiCheck(context)
     }
@@ -800,7 +816,7 @@ private fun SettingsCard(
     ) {
         title?.let {
             Text(
-                text = title,
+                text = title.uppercase(),
                 style = AppTheme.typography.subHeadline,
                 color = Color.White,
                 modifier = Modifier
@@ -879,7 +895,7 @@ private fun Choice(
         if (selected) {
             Icon(
                 painter = painterResource(R.drawable.ic_checkmark),
-                contentDescription = "已选择",
+                contentDescription = stringResource(R.string.selected),
                 modifier = Modifier.size(24.dp),
                 tint = Color.White.copy(alpha = 0.7f),
             )
@@ -981,7 +997,7 @@ private fun ImagePickerRow(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "选择图片",
+            text = stringResource(R.string.artwork_fallback_pick),
             style = AppTheme.typography.body,
             color = Color.White.copy(.5f),
             modifier = Modifier.weight(1f),
@@ -1222,7 +1238,9 @@ private fun PresetSegment(
         Text(
             text = text,
             style = AppTheme.typography.body,
-            color = if (selected) Color.White.copy(.8f) else Color.White.copy(.4f)
+            color = if (selected) Color.White.copy(.8f) else Color.White.copy(.4f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

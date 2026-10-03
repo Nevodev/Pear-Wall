@@ -1,0 +1,69 @@
+<resources>
+    <string name="wallpaper_description">随音乐封面变化的动态壁纸</string>
+    <string name="set_as_live_wallpaper">设为动态壁纸</string>
+    <string name="exported_to">导出到</string>
+    <string name="export_failed">导出失败</string>
+
+    <string name="permissions">权限</string>
+    <string name="notification_access">通知使用权</string>
+    <string name="notification_access_desc">用于读取正在播放的媒体封面</string>
+    <string name="microphone">麦克风权限</string>
+    <string name="microphone_desc">用于捕获系统输出音频</string>
+    <string name="granted">已获取</string>
+    <string name="notification_settings_error">无法打开通知使用权设置</string>
+
+    <string name="artwork_fallback">未获取到封面时</string>
+    <string name="artwork_fallback_keep">继续使用上一张封面</string>
+    <string name="artwork_fallback_custom">使用自选图片</string>
+    <string name="artwork_fallback_pick">选择图片</string>
+
+    <string name="pause_section">暂停时</string>
+    <string name="pause_custom_artwork">使用自选图片</string>
+    <string name="pause_custom_artwork_desc">开启后，播放暂停时显示“未获取到封面时”设置的自选图片</string>
+    <string name="pause_animation">暂停流动效果</string>
+    <string name="pause_animation_desc">暂停播放后冻结壁纸动画，恢复播放时继续</string>
+
+    <string name="visual_effects">画面效果</string>
+    <string name="audio_visualization">开启音频可视化</string>
+    <string name="audio_visualization_desc">可能会略微增加功耗</string>
+    <string name="scrim">压暗</string>
+    <string name="scrim_light">轻微</string>
+    <string name="scrim_standard">标准</string>
+    <string name="blur_radius">模糊半径</string>
+    <string name="blur_small">小</string>
+    <string name="blur_medium">中</string>
+    <string name="blur_large">大</string>
+    <string name="blur_extra_large">特大</string>
+    <string name="flow_speed">流动速度</string>
+    <string name="flow_standard">标准</string>
+    <string name="flow_fast">快速</string>
+
+    <string name="advanced_general">常规</string>
+    <string name="advanced_block_video">屏蔽视频播放器</string>
+    <string name="advanced_block_video_desc">忽略内置黑名单中的媒体通知和封面</string>
+    <string name="advanced_blur">模糊</string>
+    <string name="advanced_moru_glass">长虹玻璃</string>
+    <string name="advanced_moru_off">关闭</string>
+    <string name="advanced_moru_narrow">窄</string>
+    <string name="advanced_moru_wide">宽</string>
+    <string name="advanced_moru_smooth">平滑</string>
+    <string name="advanced_presets">预设方案</string>
+    <string name="advanced_randomize">亮屏时随机切换</string>
+    <string name="advanced_portrait_preset">竖屏方案</string>
+    <string name="advanced_landscape_preset">横屏方案</string>
+    <string name="advanced_render">渲染</string>
+    <string name="advanced_render_scale">渲染倍率</string>
+    <string name="advanced_frame_rate">帧数</string>
+
+    <string name="advanced">高级</string>
+    <string name="about">关于</string>
+    <string name="credits">致谢</string>
+    <string name="credits_desc">Pear Wall 能够顺利运行，离不开这些优秀的开源库。</string>
+    <string name="role_lead_developer">主要开发者</string>
+    <string name="role_special_thanks">特别感谢</string>
+
+    <string name="wallpaper_chooser_error">系统不支持动态壁纸选择器</string>
+    <string name="xiaomi_permission_hint">请开启“动态壁纸服务”，返回后再次点击设置</string>
+    <string name="selected">已选择</string>
+    <string name="back">返回</string>
+</resources>

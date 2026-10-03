@@ -30,3 +30,4 @@ app/build/generated/rust-jniLibs/
 
 .tmp
 /.idea/
+.dsh-acl-reports/

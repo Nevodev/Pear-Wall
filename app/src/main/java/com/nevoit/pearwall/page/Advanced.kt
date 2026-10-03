@@ -50,6 +50,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -126,7 +127,7 @@ fun AdvancedBottomSheet(
             ),
         ) {
             item { VGap(72.dp) }
-            NoPaddingSection(header = { "常规" }, key = "general") {
+            NoPaddingSection(header = { stringResource(R.string.advanced_general) }, key = "general") {
                 PaddedSwitchRow(
                     separator = false,
                     checked = blockVideoPlayers,
@@ -148,9 +149,9 @@ fun AdvancedBottomSheet(
                                 .padding(start = 12.dp)
                                 .padding(vertical = 12.dp)
                         ) {
-                            Text("屏蔽视频播放器")
+                            Text(stringResource(R.string.advanced_block_video))
                             Text(
-                                "忽略内置黑名单中的媒体通知和封面",
+                                stringResource(R.string.advanced_block_video_desc),
                                 style = AppTheme.typography.subHeadline,
                                 color = colors.contentVariant,
                             )
@@ -158,7 +159,7 @@ fun AdvancedBottomSheet(
                     }
                 }
             }
-            NoPaddingSection(header = { "画面效果" }, key = "moru") {
+            NoPaddingSection(header = { stringResource(R.string.visual_effects) }, key = "moru") {
                 PaddedSwitchRow(
                     separator = false,
                     checked = blurEnabled,
@@ -174,14 +175,17 @@ fun AdvancedBottomSheet(
                             modifier = Modifier.size(24.dp),
                             tint = colors.primary,
                         )
-                        Text("模糊", modifier = Modifier.padding(start = 12.dp))
+                        Text(
+                            stringResource(R.string.advanced_blur),
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
                     }
                 }
                 Row(separator = false) {
                     Column {
                         SwitchDivider()
                         SegmentedControlHeader(
-                            text = "长虹玻璃",
+                            text = stringResource(R.string.advanced_moru_glass),
                             iconRes = R.drawable.ic_moruglass
                         )
                         val moruValues = listOf(
@@ -191,7 +195,12 @@ fun AdvancedBottomSheet(
                             MoruStyle.SMOOTH,
                         )
                         SegmentedControl(
-                            items = listOf("关闭", "窄", "宽", "平滑"),
+                            items = listOf(
+                                stringResource(R.string.advanced_moru_off),
+                                stringResource(R.string.advanced_moru_narrow),
+                                stringResource(R.string.advanced_moru_wide),
+                                stringResource(R.string.advanced_moru_smooth),
+                            ),
                             selected = moruValues.indexOf(moruStyle).coerceAtLeast(0),
                             onSelected = { index -> onMoruChanged(moruValues[index]) },
                             modifier = Modifier
@@ -202,7 +211,7 @@ fun AdvancedBottomSheet(
                     }
                 }
             }
-            NoPaddingSection(header = { "预设方案" }, key = "presets") {
+            NoPaddingSection(header = { stringResource(R.string.advanced_presets) }, key = "presets") {
                 PaddedSwitchRow(
                     separator = false,
                     checked = randomize,
@@ -219,14 +228,17 @@ fun AdvancedBottomSheet(
                                 .size(24.dp),
                             tint = colors.primary,
                         )
-                        Text("亮屏时随机切换", modifier = Modifier.padding(start = 12.dp))
+                        Text(
+                            stringResource(R.string.advanced_randomize),
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
                     }
                 }
                 Row(separator = false) {
                     Column {
                         SwitchDivider()
                         SegmentedControlHeader(
-                            text = "竖屏方案",
+                            text = stringResource(R.string.advanced_portrait_preset),
                             iconRes = R.drawable.ic_phone_vertical,
                         )
                         SegmentedControl(
@@ -244,7 +256,7 @@ fun AdvancedBottomSheet(
                 Row(separator = false) {
                     Column {
                         SegmentedControlHeader(
-                            text = "横屏方案",
+                            text = stringResource(R.string.advanced_landscape_preset),
                             iconRes = R.drawable.ic_phone_horizontal,
                         )
                         SegmentedControl(
@@ -259,11 +271,11 @@ fun AdvancedBottomSheet(
                     }
                 }
             }
-            NoPaddingSection(header = { "渲染" }, key = "render") {
+            NoPaddingSection(header = { stringResource(R.string.advanced_render) }, key = "render") {
                 Row(separator = false) {
                     Column {
                         AdvancedSliderRow(
-                            label = "渲染倍率",
+                            label = stringResource(R.string.advanced_render_scale),
                             valueLabel = "${(scale * 100).roundToInt()}%",
                             value = scale,
                             valueRange = .1f..1f,
@@ -276,7 +288,7 @@ fun AdvancedBottomSheet(
                 }
                 Row(separator = false) {
                     AdvancedSliderRow(
-                        label = "帧数",
+                        label = stringResource(R.string.advanced_frame_rate),
                         valueLabel = "${fps.roundToInt()} FPS",
                         value = fps,
                         valueRange = 10f..60f,
@@ -289,7 +301,12 @@ fun AdvancedBottomSheet(
             }
             item { VGap() }
         }
-        TopBar(title = "高级", visible = true, backdrop = backdrop, onClose = slideOut)
+        TopBar(
+            title = stringResource(R.string.advanced),
+            visible = true,
+            backdrop = backdrop,
+            onClose = slideOut,
+        )
     }
 }
 

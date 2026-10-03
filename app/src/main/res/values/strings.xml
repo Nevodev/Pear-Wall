@@ -1,4 +1,71 @@
 <resources>
-    <string name="app_name">Pear Wall</string>
-    <string name="wallpaper_description">随音乐封面变化的 Pear 动态壁纸</string>
+    <string name="app_name" translatable="false">Pear Wall</string>
+
+    <string name="wallpaper_description">Music-cover responsive live wallpaper</string>
+    <string name="set_as_live_wallpaper">Set as Live Wallpaper</string>
+    <string name="exported_to">Exported to</string>
+    <string name="export_failed">Export failed</string>
+
+    <string name="permissions">Permissions</string>
+    <string name="notification_access">Notification Access</string>
+    <string name="notification_access_desc">Used to read media artwork of currently playing media</string>
+    <string name="microphone">Microphone</string>
+    <string name="microphone_desc">Used to capture system audio output</string>
+    <string name="granted">Granted</string>
+    <string name="notification_settings_error">Cannot open notification access settings</string>
+
+    <string name="artwork_fallback">When no artwork</string>
+    <string name="artwork_fallback_keep">Keep Using the Previous Artwork</string>
+    <string name="artwork_fallback_custom">Use Custom Image</string>
+    <string name="artwork_fallback_pick">Choose Image</string>
+
+    <string name="pause_section">When paused</string>
+    <string name="pause_custom_artwork">Use Custom Image</string>
+    <string name="pause_custom_artwork_desc">When enabled, use the custom image from \"When no artwork\" on pause</string>
+    <string name="pause_animation">Pause Flow Effect</string>
+    <string name="pause_animation_desc">Freeze wallpaper animation on pause, resume on play</string>
+
+    <string name="visual_effects">Visual Effects</string>
+    <string name="audio_visualization">Audio Visualization</string>
+    <string name="audio_visualization_desc">May slightly increase power consumption</string>
+    <string name="scrim">Dimming</string>
+    <string name="scrim_light">Light</string>
+    <string name="scrim_standard">Standard</string>
+    <string name="blur_radius">Blur Radius</string>
+    <string name="blur_small">S</string>
+    <string name="blur_medium">M</string>
+    <string name="blur_large">L</string>
+    <string name="blur_extra_large">XL</string>
+    <string name="flow_speed">Flow Speed</string>
+    <string name="flow_standard">Standard</string>
+    <string name="flow_fast">Fast</string>
+
+    <string name="advanced_general">General</string>
+    <string name="advanced_block_video">Block Video Players</string>
+    <string name="advanced_block_video_desc">Ignore media notifications and artwork from the built-in blacklist</string>
+    <string name="advanced_blur">Blur</string>
+    <string name="advanced_moru_glass">Moru Glass</string>
+    <string name="advanced_moru_off">Off</string>
+    <string name="advanced_moru_narrow">Narrow</string>
+    <string name="advanced_moru_wide">Wide</string>
+    <string name="advanced_moru_smooth">Smooth</string>
+    <string name="advanced_presets">Presets</string>
+    <string name="advanced_randomize">Randomize on Screen On</string>
+    <string name="advanced_portrait_preset">Portrait Preset</string>
+    <string name="advanced_landscape_preset">Landscape Preset</string>
+    <string name="advanced_render">Rendering</string>
+    <string name="advanced_render_scale">Render Scale</string>
+    <string name="advanced_frame_rate">Frame Rate</string>
+
+    <string name="advanced">Advanced</string>
+    <string name="about">About</string>
+    <string name="credits">Credits</string>
+    <string name="credits_desc">Pear Wall runs smoothly thanks to these excellent open source libraries.</string>
+    <string name="role_lead_developer">Lead Developer</string>
+    <string name="role_special_thanks">Special Thanks</string>
+
+    <string name="wallpaper_chooser_error">Live wallpaper chooser is not supported</string>
+    <string name="xiaomi_permission_hint">Enable \"Live Wallpaper Service\", then come back and tap again</string>
+    <string name="selected">Selected</string>
+    <string name="back">Back</string>
 </resources>
