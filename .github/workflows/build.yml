@@ -113,9 +113,13 @@ jobs:
         run: echo "$KEYSTORE_BASE64" | base64 -d > app/release.jks
 
       - name: Build release APK
-        # The configuration cache stays off here: the signing inputs come from
+        # `gradlew` is committed without the executable bit (the working copy is
+        # on Windows, where git cannot record it), so set it here.
+        # The configuration cache stays off: the signing inputs come from
         # environment variables and would otherwise pin a stale cache entry.
-        run: ./gradlew :app:assembleRelease --no-configuration-cache --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-configuration-cache --stacktrace
 
       - name: Verify APK signature
         # Proves the uploaded APK was signed by the repository keystore and not

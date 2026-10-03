@@ -68,5 +68,6 @@ Release 说明是**中英双语**的：中文段在前、英文段在后，各�
 
 - **SDK 平台和 build-tools 由 AGP 自己下载**：工作流只钉 `platform-tools` 和 NDK，`compileSdk` 需要的平台（`compileSdk 37` → `platforms;android-37.0`，注意平台包名带次版本号）与 build-tools 会在构建时自动拉取，所以升级 `compileSdk` 不需要动工作流。唯一要同步的是 NDK：workflow 顶部的 `NDK_VERSION` 必须和 `app/build.gradle.kts` 里的 `classicNdkVersion` 一致。
 - **Fork 的 PR 会失败**：GitHub 不会把密钥传给来自 fork 的 PR，所以“校验签名密钥”这一步会明确报错并停在编译前，不会产出未签名的包。想给 fork PR 也跑 CI，就再拆一个只用 `assembleDebug`、不依赖密钥的 job。
+- **`gradlew` 的可执行位**：Windows 上 `core.filemode=false`，Git 记不住 Unix 权限位，所以 `gradlew` 曾经以 `100644` 提交，Linux runner 上会报 `./gradlew: Permission denied`。已经在索引里改成 `100755`（`git update-index --chmod=+x gradlew`），工作流里那句 `chmod +x gradlew` 作为兜底保留，防止以后再被改回去。
 - **首次构建较慢**：Gradle 缓存和 Cargo 缓存都是冷启动，Rust 交叉编译和 NDK 下载会占掉大部分时间，第二次起会快很多。
 - 失败时先看 “Build release APK” 这一步的日志（已经带 `--stacktrace`）；常见的三类原因是密钥名拼错、NDK 版本与 `app/build.gradle.kts` 里的 `classicNdkVersion` 不一致、以及 `libs.versions.toml` 里新加的依赖在 CI 上拉不到。
