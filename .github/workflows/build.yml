@@ -15,6 +15,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Creating the release writes to the repository, and the default GITHUB_TOKEN is
+# read-only, so the workflow has to ask for write access explicitly.
+permissions:
+  contents: write
+
 env:
   NDK_VERSION: 28.2.13676358
   JAVA_VERSION: "21"
