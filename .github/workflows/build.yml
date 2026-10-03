@@ -127,13 +127,18 @@ jobs:
         run: |
           apk=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
           apksigner="$(find "${ANDROID_HOME}/build-tools" -name apksigner | sort -V | tail -n 1)"
+          # Compare the two digests as bare uppercase hex: keytool wraps the 64
+          # digits of the fingerprint and separates the bytes with colons, while
+          # apksigner prefixes the line with "V2 Signer:". Anything that is not a
+          # hex digit is dropped, so neither layout nor wrapping matters.
+          normalize() { tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F'; }
           keystore_digest=$(keytool -list -v \
             -keystore app/release.jks \
             -storepass "${MOMENTO_SIGNING_STORE_PASSWORD}" \
             -alias "${MOMENTO_SIGNING_KEY_ALIAS}" \
-            | grep -m1 'SHA256:' | tr -d ' ' | cut -d: -f2)
+            | grep -m1 'SHA256:' | sed 's/.*SHA256://' | normalize)
           apk_digest=$("${apksigner}" verify --print-certs "${apk}" \
-            | grep -m1 'certificate SHA-256 digest:' | awk '{print $NF}')
+            | grep -m1 'certificate SHA-256 digest:' | normalize)
           echo "keystore SHA-256: ${keystore_digest}"
           echo "APK      SHA-256: ${apk_digest}"
           if [ -z "${keystore_digest}" ] || [ "${keystore_digest}" != "${apk_digest}" ]; then

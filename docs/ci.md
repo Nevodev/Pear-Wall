@@ -4,7 +4,7 @@
 
 - 触发：推送到 `master`（仓库默认分支）、推送 `v*` tag（会额外发布 Release）、任意 Pull Request、以及在 Actions 页面手动 `Run workflow`
 - 产物：`pearwall-release-apk`（`app/build/outputs/apk/release/*.apk`，保留 14 天，文件名为 `pear-wall-<版本号>.apk`）；tag 构建还会把同一个 APK 挂到对应的 GitHub Release 上
-- 校验：对比 keystore 与 APK 的签名证书 SHA-256，确保产物不是被 debug 签名顶替的
+- 校验：把 keystore 证书与 APK 签名证书的 SHA-256 都归一化成大写十六进制后逐字符比对（keytool 会带冒号分隔并在中间换行，apksigner 会带 `V2 Signer:` 前缀，所以先只保留十六进制字符再比），确认产物不是被 debug 签名顶替的
 - 环境：Ubuntu + JDK 21 + Android SDK（平台与 build-tools 由 AGP 自动下载）+ NDK `28.2.13676358` + Rust `aarch64-linux-android` + `cargo-ndk`
 
 ## 一次性配置：把签名放进仓库密钥
