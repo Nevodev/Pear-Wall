@@ -127,18 +127,23 @@ jobs:
         run: |
           apk=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
           apksigner="$(find "${ANDROID_HOME}/build-tools" -name apksigner | sort -V | tail -n 1)"
-          # Compare the two digests as bare uppercase hex: keytool wraps the 64
-          # digits of the fingerprint and separates the bytes with colons, while
-          # apksigner prefixes the line with "V2 Signer:". Anything that is not a
-          # hex digit is dropped, so neither layout nor wrapping matters.
-          normalize() { tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F'; }
+          # digest64 extracts the certificate's SHA-256 no matter how the tool
+          # laid it out: keytool separates the bytes of the fingerprint with
+          # colons (and may wrap the tail onto the next line), while apksigner
+          # prefixes its line with "V2 Signer:". Dropping the colons keeps the
+          # fingerprint one run; every other non-hex character becomes a
+          # separator, because the words "SHA256" and "V2" are themselves made
+          # of hex letters and must not be glued onto the digest. What is left
+          # is the 64-digit run, and the SHA-1 (40) and MD5 (32) lines that
+          # `-A3` also captures are too short to match it.
+          digest64() { tr -d ':' | tr -c '0-9A-Fa-f' ' ' | tr 'a-f' 'A-F' | grep -oE '[0-9A-F]{64}'; }
           keystore_digest=$(keytool -list -v \
             -keystore app/release.jks \
             -storepass "${MOMENTO_SIGNING_STORE_PASSWORD}" \
             -alias "${MOMENTO_SIGNING_KEY_ALIAS}" \
-            | grep -m1 'SHA256:' | sed 's/.*SHA256://' | normalize)
+            | grep -m1 -A3 'SHA256:' | digest64)
           apk_digest=$("${apksigner}" verify --print-certs "${apk}" \
-            | grep -m1 'certificate SHA-256 digest:' | normalize)
+            | grep -m1 -A3 'certificate SHA-256 digest:' | digest64)
           echo "keystore SHA-256: ${keystore_digest}"
           echo "APK      SHA-256: ${apk_digest}"
           if [ -z "${keystore_digest}" ] || [ "${keystore_digest}" != "${apk_digest}" ]; then
