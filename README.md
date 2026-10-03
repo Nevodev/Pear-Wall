@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Nevodev/Pear-Wall/releases/download/v1.0/pear-wall-1.0.APK">
-    <img src="https://img.shields.io/badge/Download-v1.0 APK-blue?style=for-the-badge" alt="Download APK" />
+  <a href="https://github.com/Nevodev/Pear-Wall/releases/latest/download/pear-wall.apk">
+    <img src="https://img.shields.io/badge/Download-APK-blue?style=for-the-badge" alt="Download APK" />
   </a>
 </p>
 
@@ -48,6 +48,8 @@ Pear Wall transforms the album artwork of currently playing media into an Apple 
 ### Direct APK Installation
 
 Currently only `arm64-v8a` architecture is available. Requires Android 10 (API 29) or higher.
+
+The download button above always resolves to the newest release (`releases/latest/download/pear-wall.apk`), so it never goes stale. To pick a specific version, use the [releases page](https://github.com/Nevodev/Pear-Wall/releases).
 
 ### First Time Setup
 
@@ -106,6 +108,8 @@ Pear Wall 将正在播放的媒体封面渲染成受 Apple Music 启发的网格
 ### 直接安装 APK
 
 当前仅打包 `arm64-v8a` 架构，要求 Android 10（API 29）或更高版本。
+
+上面的下载按钮永远指向最新版本（`releases/latest/download/pear-wall.apk`），不会过期。需要指定某个版本时，去 [Releases 页面](https://github.com/Nevodev/Pear-Wall/releases) 挑选。
 
 ### 首次使用
 

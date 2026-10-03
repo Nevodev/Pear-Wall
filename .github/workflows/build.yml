@@ -157,10 +157,14 @@ jobs:
           metadata="app/build/outputs/apk/release/output-metadata.json"
           version=$(grep -oP '"versionName"\s*:\s*"\K[^"]+' "${metadata}" 2>/dev/null | head -n 1 || true)
           if [ -z "${version}" ]; then
-            echo "::warning::could not read versionName from ${metadata}, keeping the original file name"
-            exit 0
+            echo "::warning::could not read versionName from ${metadata}"
+          else
+            echo "Built versionName ${version}"
           fi
-          mv "${app}" "app/build/outputs/apk/release/pear-wall-${version}.apk"
+          # Deliberately version-less: the release URL
+          # /releases/latest/download/pear-wall.apk only stays valid if the asset
+          # name never changes.
+          mv "${app}" "app/build/outputs/apk/release/pear-wall.apk"
           ls -l app/build/outputs/apk/release/
 
       - name: Upload APK
@@ -178,7 +182,6 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           tag="${GITHUB_REF_NAME}"
-          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
           if git describe --tags --match 'v[0-9]*' --abbrev=0 "${tag}^" > previous-tag.txt 2>/dev/null; then
             previous=$(cat previous-tag.txt)
             compare_zh="[${previous}...${tag}](https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${tag})"
@@ -190,19 +193,19 @@ jobs:
           {
             echo "## 中文"
             echo
-            echo "Pear Wall **${version}**"
+            echo "Pear Wall **${version}** —— [下载 APK](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pear-wall.apk)（本页 Assets 里也有）"
             echo
-            echo "- **下载**：[${tag} 的 Assets](${release_url}#assets) · [全部版本](https://github.com/${GITHUB_REPOSITORY}/releases)"
             echo "- **完整改动**：${compare_zh}"
             echo "- 安装包为 arm64-v8a，需要 Android 10（API 29）或更高版本，并使用项目签名密钥签名。"
+            echo "- 上面的下载链接永远指向最新版本；本页 Assets 里的 \`pear-wall.apk\` 固定是 ${tag} 这一版。"
             echo
             echo "## English"
             echo
-            echo "Pear Wall **${version}**"
+            echo "Pear Wall **${version}** —— [Download the APK](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pear-wall.apk) (also in this page's assets)"
             echo
-            echo "- **Download**: [assets of ${tag}](${release_url}#assets) · [all releases](https://github.com/${GITHUB_REPOSITORY}/releases)"
             echo "- **Full changelog**: ${compare_en}"
             echo "- The APK targets arm64-v8a, requires Android 10 (API 29) or newer, and is signed with the project key."
+            echo "- The link above always points at the newest release; the \`pear-wall.apk\` in this page's assets stays pinned to ${tag}."
             echo
             echo "---"
             echo

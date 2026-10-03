@@ -3,7 +3,7 @@
 工作流：[`.github/workflows/build.yml`](../.github/workflows/build.yml)
 
 - 触发：推送到 `master`（仓库默认分支）、推送 `v*` tag（会额外发布 Release）、任意 Pull Request、以及在 Actions 页面手动 `Run workflow`
-- 产物：`pearwall-release-apk`（`app/build/outputs/apk/release/*.apk`，保留 14 天，文件名为 `pear-wall-<版本号>.apk`）；tag 构建还会把同一个 APK 挂到对应的 GitHub Release 上
+- 产物：`pearwall-release-apk`（`app/build/outputs/apk/release/*.apk`，保留 14 天，文件名固定为 `pear-wall.apk`）；tag 构建还会把同一个 APK 挂到对应的 GitHub Release 上
 - 校验：把 keystore 证书与 APK 签名证书的 SHA-256 都归一化成大写十六进制后逐字符比对（keytool 会带冒号分隔并在中间换行，apksigner 会带 `V2 Signer:` 前缀，所以先只保留十六进制字符再比），确认产物不是被 debug 签名顶替的
 - 环境：Ubuntu + JDK 21 + Android SDK（平台与 build-tools 由 AGP 自动下载）+ NDK `28.2.13676358` + Rust `aarch64-linux-android` + `cargo-ndk`
 
@@ -58,7 +58,9 @@ git tag v1.1              # 在要发布的那个提交上打 tag（默认就是
 git push origin v1.1      # 推送 tag，工作流自动开始
 ```
 
-推完之后：Actions 里会出现一次由 tag 触发的构建 → 编译并用你的 keystore 签名 → **校验签名证书确实来自该 keystore**（对不上就直接失败，不会发布）→ 把 APK 重命名为 `pear-wall-<版本号>.apk` → 创建 `v1.1` Release 并挂上 APK。
+推完之后：Actions 里会出现一次由 tag 触发的构建 → 编译并用你的 keystore 签名 → **校验签名证书确实来自该 keystore**（对不上就直接失败，不会发布）→ 把 APK 重命名为固定名字 `pear-wall.apk` → 创建 `v1.5` Release 并挂上 APK。
+
+**为什么附件名固定、不带版本号**：README 的下载按钮用的是 `https://github.com/<owner>/<repo>/releases/latest/download/pear-wall.apk`，这个地址会自动跳到最新 Release 的同名资产。只要资产名不变，这个链接就永远有效，README 再也不用每次发版都改；版本号本身体现在 tag、Release 标题和 APK 内的 `versionName` 上。想找历史版本就去 Releases 页面。
 
 Release 说明是**中英双语**的：中文段在前、英文段在后，各自带下载入口和完整改动对比链接，末尾再由 GitHub 自动附上按提交生成的 changelog。想加自己的更新说明，在 Release 页面直接编辑即可。
 
