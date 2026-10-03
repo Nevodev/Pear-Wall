@@ -67,6 +67,12 @@ Currently only `arm64-v8a` architecture is available. Requires Android 10 (API 2
 
 Audio visualization is optional and can be disabled to skip audio analysis.
 
+## Build
+
+Building from source requires JDK 21, Android SDK with NDK `28.2.13676358`, and the Rust toolchain with `cargo-ndk`. CI builds every push to `master`, every pull request, and every `v*` tag — using your own signing key, and publishing the signed APK as a GitHub Release when you push a tag. See [`docs/ci.md`](docs/ci.md) for the workflow and the keystore secrets it expects.
+
+`versionName` and `versionCode` are derived from Git: the newest `v*` tag names the release and the commit count keeps every build strictly newer, so shipping a release is just `git tag v1.1 && git push origin v1.1`. Set `VERSION_NAME` / `VERSION_CODE` to override both.
+
 ## License
 
 This project is licensed under the [Apache License 2.0](LICENSE). See the `LICENSE` file in the project root for details.
@@ -118,6 +124,12 @@ Pear Wall 将正在播放的媒体封面渲染成受 Apple Music 启发的网格
 | 动态壁纸系统权限        | 注册并运行 Pear Wall 壁纸服务     |
 
 音频可视化是可选功能，禁用后不会启动音频分析。
+
+## 构建
+
+从源码构建需要 JDK 21、带 NDK `28.2.13676358` 的 Android SDK，以及装有 `cargo-ndk` 的 Rust 工具链。CI 会在推送到 `master`、任意 Pull Request、以及推送 `v*` tag 时用你自己的签名密钥自动编译；推 tag 时还会把签名好的 APK 直接发布成 GitHub Release。配置方法见 [`docs/ci.md`](docs/ci.md)。
+
+`versionName` 与 `versionCode` 由 Git 推导：最新的 `v*` tag 决定版本名与版本码基数，提交数保证每个包都严格更新，所以发新版本只要 `git tag v1.1 && git push origin v1.1`。需要手动指定时用 `VERSION_NAME` / `VERSION_CODE` 覆盖。
 
 ## 开源许可
 

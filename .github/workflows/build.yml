@@ -1,0 +1,202 @@
+name: Build
+
+on:
+  push:
+    # This repository's default branch is `master`; rename it to `main` if you
+    # rename the branch, otherwise only tag builds keep running.
+    branches: [master]
+    tags: ["v[0-9]*"]
+  # Pull requests from forks get no secrets, so the release build cannot sign
+  # there; it fails early instead of publishing an unsigned APK.
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NDK_VERSION: 28.2.13676358
+  JAVA_VERSION: "21"
+  RUST_TARGET: aarch64-linux-android
+
+jobs:
+  build:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      # The signing properties are read as Gradle properties or environment
+      # variables by app/build.gradle.kts, so they can come straight from
+      # repository secrets.
+      MOMENTO_SIGNING_STORE_FILE: ${{ github.workspace }}/app/release.jks
+      MOMENTO_SIGNING_STORE_PASSWORD: ${{ secrets.MOMENTO_SIGNING_STORE_PASSWORD }}
+      MOMENTO_SIGNING_KEY_ALIAS: ${{ secrets.MOMENTO_SIGNING_KEY_ALIAS }}
+      MOMENTO_SIGNING_KEY_PASSWORD: ${{ secrets.MOMENTO_SIGNING_KEY_PASSWORD }}
+
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v5
+        with:
+          # The version name comes from the latest `v*` tag and the version code
+          # from the commit count, so the full history and tags are required.
+          fetch-depth: 0
+
+      - name: Verify signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MOMENTO_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          missing=0
+          for name in MOMENTO_SIGNING_STORE_PASSWORD MOMENTO_SIGNING_KEY_ALIAS MOMENTO_SIGNING_KEY_PASSWORD KEYSTORE_BASE64; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret $name is not set"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: latest
+          packages: "platform-tools platforms;android-37 build-tools;37.0.0"
+
+      - name: Install NDK
+        run: |
+          yes | sdkmanager --install "ndk;${NDK_VERSION}" > /dev/null
+          test -d "${ANDROID_HOME}/ndk/${NDK_VERSION}"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.RUST_TARGET }}
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: classic -> target
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml', '**/*.gradle.kts') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MOMENTO_SIGNING_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > app/release.jks
+
+      - name: Build release APK
+        # The configuration cache stays off here: the signing inputs come from
+        # environment variables and would otherwise pin a stale cache entry.
+        run: ./gradlew :app:assembleRelease --no-configuration-cache --stacktrace
+
+      - name: Verify APK signature
+        # Proves the uploaded APK was signed by the repository keystore and not
+        # by a debug or fallback key, before anything is published.
+        run: |
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          apksigner="$(find "${ANDROID_HOME}/build-tools" -name apksigner | sort -V | tail -n 1)"
+          keystore_digest=$(keytool -list -v \
+            -keystore app/release.jks \
+            -storepass "${MOMENTO_SIGNING_STORE_PASSWORD}" \
+            -alias "${MOMENTO_SIGNING_KEY_ALIAS}" \
+            | grep -m1 'SHA256:' | tr -d ' ' | cut -d: -f2)
+          apk_digest=$("${apksigner}" verify --print-certs "${apk}" \
+            | grep -m1 'certificate SHA-256 digest:' | awk '{print $NF}')
+          echo "keystore SHA-256: ${keystore_digest}"
+          echo "APK      SHA-256: ${apk_digest}"
+          if [ -z "${keystore_digest}" ] || [ "${keystore_digest}" != "${apk_digest}" ]; then
+            echo "::error::APK is not signed by the configured keystore"
+            exit 1
+          fi
+          echo "::notice::APK signature matches the configured keystore"
+
+      - name: Name APK after the version
+        run: |
+          app=$(ls app/build/outputs/apk/release/*.apk)
+          if [ "$(echo "${app}" | wc -l)" -ne 1 ]; then
+            echo "::error::expected exactly one release APK, found: ${app}"
+            exit 1
+          fi
+          metadata="app/build/outputs/apk/release/output-metadata.json"
+          version=$(grep -oP '"versionName"\s*:\s*"\K[^"]+' "${metadata}" 2>/dev/null | head -n 1 || true)
+          if [ -z "${version}" ]; then
+            echo "::warning::could not read versionName from ${metadata}, keeping the original file name"
+            exit 0
+          fi
+          mv "${app}" "app/build/outputs/apk/release/pear-wall-${version}.apk"
+          ls -l app/build/outputs/apk/release/
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: pearwall-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write release notes
+        # Tag builds only; writes a bilingual body with download links, followed
+        # by GitHub's generated commit changelog.
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          tag="${GITHUB_REF_NAME}"
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+          if git describe --tags --match 'v[0-9]*' --abbrev=0 "${tag}^" > previous-tag.txt 2>/dev/null; then
+            previous=$(cat previous-tag.txt)
+            compare_zh="[${previous}...${tag}](https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${tag})"
+            compare_en="[${previous}...${tag}](https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${tag})"
+          else
+            compare_zh="首个版本"
+            compare_en="initial release"
+          fi
+          {
+            echo "## 中文"
+            echo
+            echo "Pear Wall **${version}**"
+            echo
+            echo "- **下载**：[${tag} 的 Assets](${release_url}#assets) · [全部版本](https://github.com/${GITHUB_REPOSITORY}/releases)"
+            echo "- **完整改动**：${compare_zh}"
+            echo "- 安装包为 arm64-v8a，需要 Android 10（API 29）或更高版本，并使用项目签名密钥签名。"
+            echo
+            echo "## English"
+            echo
+            echo "Pear Wall **${version}**"
+            echo
+            echo "- **Download**: [assets of ${tag}](${release_url}#assets) · [all releases](https://github.com/${GITHUB_REPOSITORY}/releases)"
+            echo "- **Full changelog**: ${compare_en}"
+            echo "- The APK targets arm64-v8a, requires Android 10 (API 29) or newer, and is signed with the project key."
+            echo
+            echo "---"
+            echo
+            echo "_Generated from ${GITHUB_SHA:0:7} by GitHub Actions._"
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Publish GitHub release
+        # Only tag pushes publish; branch builds and PRs just keep the artifact.
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          generate_release_notes: true
+          files: app/build/outputs/apk/release/*.apk
+          fail_on_unmatched_files: true

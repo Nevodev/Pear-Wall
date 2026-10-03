@@ -29,6 +29,48 @@ check(!hasSigningProperties || isSigningConfigured) {
     "Momento signing requires all MOMENTO_SIGNING_* properties to be configured"
 }
 
+// Git-derived version. The newest `v<major>.<minor>[.<patch>]` tag names the
+// release and numbers it (`v1.1` -> 10100); the total commit count is added on
+// top so every single commit gets a strictly larger version code, tag or not.
+// VERSION_NAME / VERSION_CODE override both.
+val gitDescribe = providers.exec {
+    commandLine("git", "describe", "--long", "--dirty", "--tags", "--match", "v[0-9]*")
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { it.trim() }
+
+val gitCommitCount = providers.exec {
+    commandLine("git", "rev-list", "--count", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { it.trim().toIntOrNull() ?: 1 }
+
+// "v1.1-3-gabc123-dirty" -> name "1.1", code 10100, 3 commits past the tag.
+fun parseGitVersion(describe: String, commits: Int): Triple<String, Int, Int> {
+    val match = Regex("""^v(\d+)\.(\d+)(?:\.(\d+))?-(\d+)-g""").find(describe)
+        ?: return Triple("1.0", 10000, 0)
+    val (major, minor, patch) = match.destructured
+    val name = listOf(major, minor, patch).filter { it.isNotEmpty() }.joinToString(".")
+    val code = major.toInt() * 10_000 + minor.toInt() * 100 + patch.ifEmpty { "0" }.toInt()
+    return Triple(name, code, match.groupValues[4].toInt().coerceAtLeast(0))
+}
+
+val gitVersion = gitDescribe.zip(gitCommitCount) { describe, commits ->
+    parseGitVersion(describe, commits)
+}
+
+val appVersionName = providers.gradleProperty("VERSION_NAME")
+    .orElse(providers.environmentVariable("VERSION_NAME"))
+    .orElse(gitVersion.map { (name, _, sinceTag) ->
+        if (sinceTag > 0) "$name-dev.$sinceTag" else name
+    })
+    .orElse("1.0")
+
+val appVersionCode = providers.gradleProperty("VERSION_CODE")
+    .orElse(providers.environmentVariable("VERSION_CODE"))
+    .map { it.toIntOrNull() ?: 1 }
+    .orElse(gitVersion.map { (_, code, _) -> code + gitCommitCount.get() })
+    .orElse(1001)
+    .map { it.coerceAtLeast(1) }
+
 android {
     namespace = "com.nevoit.pearwall"
     compileSdk {
@@ -40,8 +82,8 @@ android {
         applicationId = "com.nevoit.pearwall"
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode.get()
+        versionName = appVersionName.get()
         ndk {
             abiFilters.add("arm64-v8a")
         }
@@ -103,10 +145,19 @@ dependencies {
     implementation(libs.backdrop)
 }
 
-val localProperties = Properties().apply {
-    rootProject.file("local.properties").inputStream().use(::load)
-}
-val sdkDirectory = file(localProperties.getProperty("sdk.dir").replace("\\:", ":"))
+val localSdkDirectory = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.let { propertiesFile ->
+        Properties().apply { propertiesFile.inputStream().use(::load) }
+            .getProperty("sdk.dir")
+    }
+val sdkDirectory = file(
+    (localSdkDirectory
+        ?: System.getenv("ANDROID_HOME")
+        ?: System.getenv("ANDROID_SDK_ROOT")
+        ?: error("Android SDK not found: set sdk.dir in local.properties or ANDROID_HOME"))
+        .replace("\\:", ":")
+)
 val nativeOutputDirectory = layout.buildDirectory.dir("generated/rust-jniLibs")
 val buildClassicNative = tasks.register<Exec>("buildClassicNative") {
     val ndkDirectory = sdkDirectory.resolve("ndk/$classicNdkVersion")
