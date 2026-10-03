@@ -63,15 +63,27 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Set up Android SDK
+        # Only the tools are pinned here: the SDK platform and build-tools are
+        # left to AGP, which downloads whatever `compileSdk` in
+        # app/build.gradle.kts asks for (licenses are already accepted on the
+        # runner). That way an SDK minor bump cannot break this workflow.
         uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: latest
-          packages: "platform-tools platforms;android-37 build-tools;37.0.0"
+          packages: "platform-tools"
 
-      - name: Install NDK
+      - name: Install NDK and build-tools
         run: |
           yes | sdkmanager --install "ndk;${NDK_VERSION}" > /dev/null
           test -d "${ANDROID_HOME}/ndk/${NDK_VERSION}"
+          # Resolve the newest available build-tools instead of pinning one.
+          build_tools=$(sdkmanager --list | grep -oP '^\s+build-tools;\K[0-9.]+' | sort -V | tail -n 1)
+          if [ -z "${build_tools}" ]; then
+            echo "::error::could not parse build-tools versions from 'sdkmanager --list'"
+            exit 1
+          fi
+          echo "Installing build-tools;${build_tools}"
+          yes | sdkmanager --install "build-tools;${build_tools}" > /dev/null
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable

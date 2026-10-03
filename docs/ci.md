@@ -5,7 +5,7 @@
 - 触发：推送到 `master`（仓库默认分支）、推送 `v*` tag（会额外发布 Release）、任意 Pull Request、以及在 Actions 页面手动 `Run workflow`
 - 产物：`pearwall-release-apk`（`app/build/outputs/apk/release/*.apk`，保留 14 天，文件名为 `pear-wall-<版本号>.apk`）；tag 构建还会把同一个 APK 挂到对应的 GitHub Release 上
 - 校验：对比 keystore 与 APK 的签名证书 SHA-256，确保产物不是被 debug 签名顶替的
-- 环境：Ubuntu + JDK 21 + Android SDK（`platforms;android-37`、`build-tools;37.0.0`）+ NDK `28.2.13676358` + Rust `aarch64-linux-android` + `cargo-ndk`
+- 环境：Ubuntu + JDK 21 + Android SDK（平台与 build-tools 由 AGP 自动下载）+ NDK `28.2.13676358` + Rust `aarch64-linux-android` + `cargo-ndk`
 
 ## 一次性配置：把签名放进仓库密钥
 
@@ -66,6 +66,7 @@ Release 说明是**中英双语**的：中文段在前、英文段在后，各�
 
 ## 注意
 
+- **SDK 平台和 build-tools 由 AGP 自己下载**：工作流只钉 `platform-tools` 和 NDK，`compileSdk` 需要的平台（`compileSdk 37` → `platforms;android-37.0`，注意平台包名带次版本号）与 build-tools 会在构建时自动拉取，所以升级 `compileSdk` 不需要动工作流。唯一要同步的是 NDK：workflow 顶部的 `NDK_VERSION` 必须和 `app/build.gradle.kts` 里的 `classicNdkVersion` 一致。
 - **Fork 的 PR 会失败**：GitHub 不会把密钥传给来自 fork 的 PR，所以“校验签名密钥”这一步会明确报错并停在编译前，不会产出未签名的包。想给 fork PR 也跑 CI，就再拆一个只用 `assembleDebug`、不依赖密钥的 job。
 - **首次构建较慢**：Gradle 缓存和 Cargo 缓存都是冷启动，Rust 交叉编译和 NDK 下载会占掉大部分时间，第二次起会快很多。
 - 失败时先看 “Build release APK” 这一步的日志（已经带 `--stacktrace`）；常见的三类原因是密钥名拼错、NDK 版本与 `app/build.gradle.kts` 里的 `classicNdkVersion` 不一致、以及 `libs.versions.toml` 里新加的依赖在 CI 上拉不到。
