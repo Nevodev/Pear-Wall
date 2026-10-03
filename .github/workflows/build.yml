@@ -186,40 +186,18 @@ jobs:
           retention-days: 14
 
       - name: Write release notes
-        # Tag builds only; writes a bilingual body with download links, followed
-        # by GitHub's generated commit changelog.
+        # Tag builds only. One line: what to download and where to read the
+        # changes. Nothing else — no restating what the app requires.
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          tag="${GITHUB_REF_NAME}"
-          if git describe --tags --match 'v[0-9]*' --abbrev=0 "${tag}^" > previous-tag.txt 2>/dev/null; then
+          if git describe --tags --match 'v[0-9]*' --abbrev=0 "${GITHUB_REF_NAME}^" > previous-tag.txt 2>/dev/null; then
             previous=$(cat previous-tag.txt)
-            compare_zh="[${previous}...${tag}](https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${tag})"
-            compare_en="[${previous}...${tag}](https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${tag})"
+            compare="[${previous}...${GITHUB_REF_NAME}](https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${GITHUB_REF_NAME})"
           else
-            compare_zh="首个版本"
-            compare_en="initial release"
+            compare="[all commits](https://github.com/${GITHUB_REPOSITORY}/commits)"
           fi
           {
-            echo "## 中文"
-            echo
-            echo "Pear Wall **${version}** —— [下载 APK](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pear-wall.apk)（本页 Assets 里也有）"
-            echo
-            echo "- **完整改动**：${compare_zh}"
-            echo "- 安装包为 arm64-v8a，需要 Android 10（API 29）或更高版本，并使用项目签名密钥签名。"
-            echo "- 上面的下载链接永远指向最新版本；本页 Assets 里的 \`pear-wall.apk\` 固定是 ${tag} 这一版。"
-            echo
-            echo "## English"
-            echo
-            echo "Pear Wall **${version}** —— [Download the APK](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pear-wall.apk) (also in this page's assets)"
-            echo
-            echo "- **Full changelog**: ${compare_en}"
-            echo "- The APK targets arm64-v8a, requires Android 10 (API 29) or newer, and is signed with the project key."
-            echo "- The link above always points at the newest release; the \`pear-wall.apk\` in this page's assets stays pinned to ${tag}."
-            echo
-            echo "---"
-            echo
-            echo "_Generated from ${GITHUB_SHA:0:7} by GitHub Actions._"
+            echo "**Download the APK**: [latest release](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pear-wall.apk) · **Full changelog**: ${compare}"
           } > release-notes.md
           cat release-notes.md
 
@@ -231,6 +209,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: release-notes.md
-          generate_release_notes: true
+          # Off on purpose: the generated changelog would duplicate the compare
+          # link already in the body. To get it, set this to true and drop the
+          # changelog link from Write release notes.
+          generate_release_notes: false
           files: app/build/outputs/apk/release/*.apk
           fail_on_unmatched_files: true

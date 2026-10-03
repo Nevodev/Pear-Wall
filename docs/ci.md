@@ -62,7 +62,7 @@ git push origin v1.1      # 推送 tag，工作流自动开始
 
 **为什么附件名固定、不带版本号**：README 的下载按钮用的是 `https://github.com/<owner>/<repo>/releases/latest/download/pear-wall.apk`，这个地址会自动跳到最新 Release 的同名资产。只要资产名不变，这个链接就永远有效，README 再也不用每次发版都改；版本号本身体现在 tag、Release 标题和 APK 内的 `versionName` 上。想找历史版本就去 Releases 页面。
 
-Release 说明是**中英双语**的：中文段在前、英文段在后，各自带下载入口和完整改动对比链接，末尾再由 GitHub 自动附上按提交生成的 changelog。想加自己的更新说明，在 Release 页面直接编辑即可。
+Release 说明只有**一行**：下载入口 + 与上一版的改动对比，仅此而已（`generate_release_notes` 关掉了，否则 GitHub 会在末尾再插一段重复的 changelog）。想补充更新说明，在 Release 页面直接编辑。
 
 同一个 tag 重复推送不会重新触发；如果某次构建失败，把那个 tag 删掉重推（`git push origin :v1.1` 后再推），或在 Actions 页面点 **Re-run all jobs**（重跑时 Release 里的 APK 会被覆盖）。
 
